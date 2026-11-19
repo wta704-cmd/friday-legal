@@ -15,17 +15,29 @@
 </head>
 <body>
 <h1>개인정보처리방침</h1>
-<p class="sub">FRIDAY metrics · 시행일 2026년 10월 22일</p>
+<p class="sub">FRIDAY metrics · 시행일 2026년 11월 19일 (이전 판: 2026년 10월 22일)</p>
 
-<p>KS오토 영상기획부(이하 "운영자")는 내부 도구 FRIDAY metrics(이하 "앱")를 운영하며, 앱이 Google 사용자 데이터를 어떻게 다루는지 다음과 같이 안내합니다.</p>
+<p>KS오토 영상기획부(이하 "운영자")는 내부 도구 FRIDAY metrics(이하 "앱")를 운영하며, 앱이 Google(YouTube)·Instagram·TikTok 사용자 데이터를 어떻게 다루는지 다음과 같이 안내합니다.</p>
 
 <h2>1. 수집하는 정보</h2>
-<p>채널 소유자가 Google 계정으로 승인한 경우에 한해, 다음 읽기 전용 권한으로 정보를 가져옵니다.</p>
+<p>계정 소유자가 각 플랫폼 계정으로 승인한 경우에 한해, 다음 읽기 전용 권한으로 정보를 가져옵니다.</p>
+<p><strong>YouTube (Google)</strong></p>
 <ul>
   <li><code>youtube.readonly</code>: 채널 이름, 영상 목록, 공개 통계(조회수·좋아요·댓글 수)</li>
   <li><code>yt-analytics.readonly</code>: 채널 분석 통계(시청 시간, 평균 시청 지속률 등)</li>
 </ul>
-<p>시청자 개인을 식별할 수 있는 정보는 수집하지 않으며, 영상·채널을 변경하는 권한은 요청하지 않습니다.</p>
+<p><strong>Instagram (Meta)</strong></p>
+<ul>
+  <li><code>instagram_business_basic</code>: 계정 이름, 게시물 목록, 공개 지표(좋아요·댓글 수 등)</li>
+  <li><code>instagram_business_manage_insights</code>: 계정·게시물 인사이트(도달, 노출, 재생 등)</li>
+</ul>
+<p><strong>TikTok</strong></p>
+<ul>
+  <li><code>user.info.basic</code>: 계정 이름</li>
+  <li><code>user.info.stats</code>: 팔로워 수 등 계정 통계</li>
+  <li><code>video.list</code>: 영상 목록과 공개 지표</li>
+</ul>
+<p>시청자·팔로워 개인을 식별할 수 있는 정보는 수집하지 않으며, 게시물·채널·계정을 변경하는 권한은 요청하지 않습니다.</p>
 
 <h2>2. 이용 목적</h2>
 <p>운영자가 운영하는 채널의 성과를 분석해 콘텐츠 기획에 활용하는 내부 목적으로만 이용합니다. 광고, 판매, 프로파일링 등 다른 목적에는 이용하지 않습니다.</p>
@@ -34,7 +46,8 @@
 <ul>
   <li>인증 토큰은 접근이 제한된 비공개 저장소의 암호화된 비밀값(GitHub Secrets)에 보관합니다.</li>
   <li>수집한 통계는 비공개 저장소에 보관하며, 운영자 내부 인원만 열람합니다.</li>
-  <li>승인이 철회되거나 더 이상 필요하지 않은 경우 해당 토큰과 데이터를 삭제합니다.</li>
+  <li>보관 기간: 인증 토큰은 승인이 유지되는 동안에만 보관합니다. 수집한 통계는 운영자가 해당 채널·계정을 운영하는 동안 보관하며, 운영이 끝나거나 이용 목적이 달성되면 삭제합니다.</li>
+  <li>승인이 철회되거나 삭제를 요청받으면 다음 수집부터 그 계정의 정보를 가져오지 않으며, 해당 토큰과 데이터를 지체 없이(늦어도 30일 이내) 삭제합니다.</li>
 </ul>
 
 <h2>4. 제3자 제공</h2>
@@ -44,7 +57,12 @@
 <p>앱이 Google API로부터 받은 정보의 사용 및 다른 앱으로의 전송은 제한적 사용(Limited Use) 요건을 포함한 <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API 서비스 사용자 데이터 정책</a>을 준수합니다. YouTube 데이터 이용에는 <a href="https://www.youtube.com/t/terms">YouTube 서비스 약관</a>과 <a href="https://policies.google.com/privacy">Google 개인정보처리방침</a>이 함께 적용됩니다.</p>
 
 <h2>6. 승인 철회 방법</h2>
-<p><a href="https://myaccount.google.com/permissions">Google 계정 → 보안 → 타사 앱 액세스</a>에서 FRIDAY metrics를 삭제하면 언제든 접근 권한을 철회할 수 있습니다.</p>
+<p>언제든 아래에서 FRIDAY metrics 를 제거하면 접근 권한을 철회할 수 있습니다. 아래 문의 주소로 삭제를 요청할 수도 있습니다.</p>
+<ul>
+  <li>YouTube(Google): <a href="https://myaccount.google.com/permissions">Google 계정 → 보안 → 타사 앱 액세스</a></li>
+  <li>Instagram: Instagram 앱 → 설정 → 앱 및 웹사이트</li>
+  <li>TikTok: TikTok 앱 → 설정 및 개인정보 → 보안 → 앱 권한 관리</li>
+</ul>
 
 <h2>7. 문의</h2>
 <p>개인정보 관련 문의: wta704@gmail.com</p>
@@ -55,9 +73,10 @@
 <hr>
 
 <h1>Privacy Policy</h1>
-<p class="sub">FRIDAY metrics · Effective October 22, 2026</p>
-<p>FRIDAY metrics is an internal tool of the KS Auto Video Planning Department. With the channel owner's consent, it reads YouTube channel statistics using read-only scopes (<code>youtube.readonly</code>, <code>yt-analytics.readonly</code>) solely to analyze the performance of channels we operate. We do not collect viewer-identifying data, request write access, sell data, or share it with third parties except as required by law. Tokens are kept in encrypted secrets in a private repository and deleted when access is revoked.</p>
+<p class="sub">FRIDAY metrics · Effective November 19, 2026 (previous version: October 22, 2026)</p>
+<p>FRIDAY metrics is an internal tool of the KS Auto Video Planning Department. With the account owner's consent, it reads statistics using read-only scopes solely to analyze the performance of channels and accounts we operate: YouTube (<code>youtube.readonly</code>, <code>yt-analytics.readonly</code>), Instagram (<code>instagram_business_basic</code>, <code>instagram_business_manage_insights</code>) and TikTok (<code>user.info.basic</code>, <code>user.info.stats</code>, <code>video.list</code>). We do not collect viewer- or follower-identifying data, request write access, sell data, or share it with third parties except as required by law.</p>
+<p>Tokens are kept in encrypted secrets in a private repository only while consent remains in effect. Collected statistics are kept while we operate the channel or account and deleted when that purpose ends. If consent is revoked or deletion is requested, we stop collecting from that account and delete its token and data without delay (within 30 days at the latest).</p>
 <p>FRIDAY metrics' use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Use of YouTube data is also subject to the <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a> and the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</p>
-<p>You can revoke access at any time at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Contact: wta704@gmail.com</p>
+<p>You can revoke access at any time: Google at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>; Instagram under Settings → Apps and websites; TikTok under Settings and privacy → Security → Manage app permissions. Contact: wta704@gmail.com</p>
 </body>
 </html>
