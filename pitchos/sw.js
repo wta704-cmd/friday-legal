@@ -4,7 +4,7 @@
 // go to the network, so a stale cache can never show another account's data or
 // a vote that was already replaced.
 
-const CACHE = 'pitchos-shell-v1';
+const CACHE = 'pitchos-shell-v2';
 
 const SHELL = [
   './',
@@ -74,16 +74,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Stale-while-revalidate: answer from the cache so the shell opens instantly,
+  // and replace that copy in the background so a new deploy is picked up on the
+  // next visit instead of being pinned by the service worker.
   event.respondWith(
     caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        if (response.ok && response.type === 'basic') {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
-        }
-        return response;
-      });
+      const network = fetch(request)
+        .then((response) => {
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
+          }
+          return response;
+        })
+        .catch(() => cached);
+      if (cached) {
+        event.waitUntil(network.catch(() => undefined));
+        return cached;
+      }
+      return network;
     }),
   );
 });
