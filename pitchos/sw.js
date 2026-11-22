@@ -3,8 +3,13 @@
 // Only static files are cached: API calls (Supabase REST/Auth/Functions) always
 // go to the network, so a stale cache can never show another account's data or
 // a vote that was already replaced.
+//
+// Static files are network-first with a revalidating fetch, and the cache is the
+// fallback when the phone is offline. A deploy therefore shows up on the next
+// visit instead of waiting for a background refresh that the browser's HTTP
+// cache (GitHub Pages sends max-age=600) may answer with the old copy.
 
-const CACHE = 'pitchos-shell-v3';
+const CACHE = 'pitchos-shell-v4';
 
 const SHELL = [
   './',
@@ -38,11 +43,22 @@ const SHELL = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(SHELL))
-      .catch(() => undefined)
-      .then(() => self.skipWaiting()),
+    (async () => {
+      const cache = await caches.open(CACHE);
+      // `cache: reload` skips the HTTP cache, so a new service worker never seeds
+      // itself with the previous deploy's files.
+      await Promise.all(
+        SHELL.map(async (url) => {
+          try {
+            const response = await fetch(new Request(url, { cache: 'reload' }));
+            if (response.ok) await cache.put(url, response);
+          } catch {
+            /* one missing file must not block the whole shell */
+          }
+        }),
+      );
+      await self.skipWaiting();
+    })(),
   );
 });
 
@@ -62,38 +78,27 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put('./index.html', copy)).catch(() => undefined);
-          return response;
-        })
-        .catch(() => caches.match('./index.html').then((cached) => cached || caches.match('./'))),
-    );
-    return;
-  }
-
-  // Stale-while-revalidate: answer from the cache so the shell opens instantly,
-  // and replace that copy in the background so a new deploy is picked up on the
-  // next visit instead of being pinned by the service worker.
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok && response.type === 'basic') {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
-          }
-          return response;
-        })
-        .catch(() => cached);
-      if (cached) {
-        event.waitUntil(network.catch(() => undefined));
-        return cached;
+    (async () => {
+      try {
+        const response = await fetch(request, { cache: 'no-cache' });
+        if (response && response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => undefined);
+        }
+        return response;
+      } catch {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        if (request.mode === 'navigate') {
+          const shell = await caches.match('./index.html');
+          if (shell) return shell;
+        }
+        return new Response('오프라인 상태입니다.', {
+          status: 503,
+          headers: { 'content-type': 'text/plain; charset=utf-8' },
+        });
       }
-      return network;
-    }),
+    })(),
   );
 });
