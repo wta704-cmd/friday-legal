@@ -357,7 +357,7 @@ export function stepper({
     {
       class: 'step-btn',
       type: 'button',
-      'aria-label': `${label} ${step}${suffix} 줄이기`,
+      'aria-label': `${label} 줄이기`,
       onclick: () => set(current - step),
     },
     icon('minus', { size: 17 }),
@@ -367,7 +367,7 @@ export function stepper({
     {
       class: 'step-btn',
       type: 'button',
-      'aria-label': `${label} ${step}${suffix} 늘리기`,
+      'aria-label': `${label} 늘리기`,
       onclick: () => set(current + step),
     },
     icon('plus', { size: 17 }),

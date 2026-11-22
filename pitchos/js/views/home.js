@@ -716,6 +716,7 @@ function openCreateMatch(ctx) {
     min: QUARTER_COUNT.min,
     max: QUARTER_COUNT.max,
     step: 1,
+    suffix: '쿼터',
     hint: '총 경기 시간에서 자동으로 계산됩니다. − / + 로 직접 조정해도 됩니다.',
     onChange: (value) => {
       manualQuarters = value;
@@ -757,7 +758,8 @@ function openCreateMatch(ctx) {
           h(
             'div',
             { class: 'plan-block' },
-            h('div', { class: 'field-row' }, totalField.el, quarterField.el),
+            totalField.el,
+            quarterField.el,
             h('div', { class: 'field-row' }, breakField.el, countField.el),
             planNote,
           ),
