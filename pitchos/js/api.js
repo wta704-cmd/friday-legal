@@ -313,7 +313,21 @@ export const auth = {
 
   /** Server-side identity check used on boot. */
   async me() {
-    const data = await request('/user', { base: 'auth' });
+    let data;
+    try {
+      data = await request('/user', { base: 'auth' });
+    } catch (error) {
+      // GoTrue answers 403 user_not_found when the account behind the stored
+      // token was deleted (e.g. the same phone signed out by deleting it), and
+      // 401 when the token expired. Both mean "log in again", not "retry".
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        throw new ApiError('로그인이 필요합니다. 다시 로그인해 주세요.', {
+          status: 401,
+          code: 'session_expired',
+        });
+      }
+      throw error;
+    }
     const current = getSession();
     if (current) {
       saveSession({ ...current, user: { id: data.id, email: data.email } });

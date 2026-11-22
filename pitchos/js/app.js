@@ -160,7 +160,7 @@ async function boot() {
     await render();
     setupServiceWorker();
   } catch (error) {
-    if (error instanceof ApiError && error.isAuthError) {
+    if (error instanceof ApiError && (error.isAuthError || error.status === 403)) {
       clearSession();
       renderAuth(root, { onSignedIn: onSignedIn });
       return;
