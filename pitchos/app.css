@@ -855,7 +855,7 @@ button.list-row:active {
   height: 32px;
   border-radius: 10px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-ink);
 }
 
 .list-row-icon.tone-red {
@@ -1981,7 +1981,7 @@ button.member-row:active {
 
 .field-label .req {
   margin-left: 2px;
-  color: var(--brand);
+  color: var(--brand-ink);
   font-style: normal;
 }
 
