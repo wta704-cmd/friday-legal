@@ -242,7 +242,7 @@ function heroSide(name, logoUrl, label, away = false) {
   return h(
     'div',
     { class: `hero-side${away ? ' is-away' : ''}` },
-    crest(name, { size: 40, logoUrl, tone: logoUrl ? 'crest' : 'light' }),
+    crest(name, { size: 40, logoUrl, tone: logoUrl ? 'crest' : away ? 'ghost' : 'light' }),
     h(
       'div',
       { style: { minWidth: '0' } },
@@ -913,6 +913,10 @@ function matchRow(match, rows, onOpen, { past = false } = {}) {
 
 async function build(root, ctx) {
   const team = currentTeam();
+  // 내 역할(팀장·매니저)은 팀원 목록에서 나오므로, 앱바의 [+ 경기]를 그리기 전에
+  // 먼저 불러온다. 첫 화면에서도 권한이 있는 사람에게 버튼이 보이게.
+  if (team) await loadMembers(team.id);
+
   const content = h('div', { class: 'content' });
   const screen = h(
     'div',
@@ -945,7 +949,7 @@ async function build(root, ctx) {
 
   content.appendChild(teamSwitcher(() => ctx.render()));
 
-  await Promise.all([loadMembers(team.id), loadMatches(team.id)]);
+  await loadMatches(team.id);
   const now = Date.now();
   const all = state.matches;
   const upcoming = all

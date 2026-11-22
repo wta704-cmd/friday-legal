@@ -142,6 +142,9 @@ export function crest(name, { size = 44, logoUrl = null, tone = 'crest' } = {}) 
   } else if (tone === 'light') {
     style.background = '#fff';
     style.color = '#1D4ED8';
+  } else if (tone === 'ghost') {
+    style.background = 'rgba(255,255,255,0.16)';
+    style.color = '#fff';
   } else if (!logoUrl) {
     style.background = crestColor(name);
   }
