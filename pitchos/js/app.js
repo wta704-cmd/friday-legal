@@ -1,7 +1,7 @@
 // App shell: session boot, hash router, tab bar, maintenance banner.
 
 import './diag.js';
-import { auth, getSession, ops, ApiError, clearSession } from './api.js';
+import { auth, getSession, ops, ApiError, clearSession, ensureFreshSession } from './api.js';
 import { state, reset, loadProfile, loadTeams } from './store.js';
 import { renderAuth } from './views/auth.js';
 import { renderHome } from './views/home.js';
@@ -213,6 +213,29 @@ function setupServiceWorker() {
   });
 }
 
+let resuming = false;
+
+/**
+ * 화면이 다시 살아났을 때(탭 전환·홈 화면 복귀·bfcache·네트워크 재연결): 만료가
+ * 가까우면 토큰을 먼저 갱신하고, 그 다음 현재 탭을 다시 그린다. 오프라인처럼
+ * 갱신에 실패해도 로그인을 풀지 않고 있던 화면을 그대로 둔다.
+ */
+async function resume() {
+  if (!booted || resuming || !getSession()) return;
+  resuming = true;
+  try {
+    await ensureFreshSession();
+    await render();
+  } catch (error) {
+    if (error instanceof ApiError && error.isAuthError) {
+      toast('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.', { kind: 'error', ms: 4200 });
+      ctx.onSignedOut();
+    }
+  } finally {
+    resuming = false;
+  }
+}
+
 window.addEventListener('hashchange', () => {
   if (!booted) return;
   if (!getSession()) {
@@ -225,7 +248,15 @@ window.addEventListener('hashchange', () => {
 document.addEventListener('visibilitychange', () => {
   // A phone tab can sit for hours: refresh the token and redraw on return so a
   // stale access token never shows up as an empty list.
-  if (document.visibilityState === 'visible' && getSession() && booted) void render();
+  if (document.visibilityState === 'visible') void resume();
 });
+
+// iOS는 홈 화면 앱을 다시 열 때 페이지를 bfcache에서 꺼내오기도 하고, 잠자기에서
+// 깨어나면 네트워크가 먼저 끊겼다 붙는다. 두 경우 모두 세션을 먼저 확인한다.
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) void resume();
+});
+
+window.addEventListener('online', () => void resume());
 
 void boot();

@@ -277,6 +277,144 @@ export function select({ label, options, value = '', hint = '', required = false
   };
 }
 
+let stepperSeq = 0;
+
+/**
+ * -/+ 스텝퍼 + 빠른 선택 칩. 숫자 입력도 같이 받는다(1분 단위 등).
+ *
+ * - label을 <label for>로 잇지 않고 div로 감싼다: 버튼(칩)을 label 안에 두면
+ *   iOS에서 탭 이벤트가 한 번 더 발생해 값이 두 칸씩 움직인다.
+ *
+ * @returns {{ el: HTMLElement, get value(): number, set(value: number, opts?: {silent?: boolean}): number, focus(): void }}
+ */
+export function stepper({
+  label,
+  value = 0,
+  min = 0,
+  max = 100,
+  step = 1,
+  suffix = '분',
+  chips = [],
+  hint = '',
+  onChange = null,
+  ariaLabel = null,
+}) {
+  stepperSeq += 1;
+  const id = `stepper-${stepperSeq}`;
+  const normalize = (next) => {
+    const number = Number(next);
+    if (!Number.isFinite(number)) return value;
+    return Math.min(max, Math.max(min, Math.round(number)));
+  };
+
+  const control = h('input', {
+    class: 'step-input',
+    id,
+    type: 'number',
+    inputmode: 'numeric',
+    pattern: '[0-9]*',
+    min,
+    max,
+    step,
+    value: String(value),
+    'aria-label': ariaLabel || label,
+  });
+
+  const chipButtons = chips.map((chip) => {
+    const chipValue = typeof chip === 'object' && chip !== null ? chip.value : chip;
+    const chipLabel =
+      typeof chip === 'object' && chip !== null ? chip.label : `${chipValue}${suffix}`;
+    return h(
+      'button',
+      {
+        class: 'chip',
+        type: 'button',
+        dataset: { value: String(chipValue) },
+        onclick: () => set(chipValue),
+      },
+      chipLabel,
+    );
+  });
+
+  let current = normalize(value);
+
+  function paint() {
+    control.value = String(current);
+    for (const chip of chipButtons) {
+      chip.classList.toggle('is-active', Number(chip.dataset.value) === current);
+    }
+  }
+
+  function set(next, { silent = false } = {}) {
+    current = normalize(next);
+    paint();
+    if (!silent) onChange?.(current);
+    return current;
+  }
+
+  const minus = h(
+    'button',
+    {
+      class: 'step-btn',
+      type: 'button',
+      'aria-label': `${label} ${step}${suffix} 줄이기`,
+      onclick: () => set(current - step),
+    },
+    icon('minus', { size: 17 }),
+  );
+  const plus = h(
+    'button',
+    {
+      class: 'step-btn',
+      type: 'button',
+      'aria-label': `${label} ${step}${suffix} 늘리기`,
+      onclick: () => set(current + step),
+    },
+    icon('plus', { size: 17 }),
+  );
+
+  control.addEventListener('input', () => {
+    if (control.value === '') return; // 지우는 중에는 기다린다
+    const number = Number(control.value);
+    if (!Number.isFinite(number)) return;
+    current = Math.min(max, Math.max(min, Math.round(number)));
+    for (const chip of chipButtons) {
+      chip.classList.toggle('is-active', Number(chip.dataset.value) === current);
+    }
+    onChange?.(current);
+  });
+  control.addEventListener('blur', () => {
+    if (control.value === '') set(current, { silent: false });
+    else paint();
+  });
+
+  paint();
+
+  const el = h(
+    'div',
+    { class: 'field stepper-field' },
+    h('span', { class: 'field-label' }, h('label', { for: id }, label)),
+    h(
+      'div',
+      { class: 'stepper' },
+      minus,
+      h('div', { class: 'step-box' }, control, suffix ? h('span', { class: 'step-suffix' }, suffix) : null),
+      plus,
+    ),
+    chipButtons.length ? h('div', { class: 'chip-row chip-wrap' }, ...chipButtons) : null,
+    hint ? h('span', { class: 'field-hint' }, hint) : null,
+  );
+
+  return {
+    el,
+    get value() {
+      return current;
+    },
+    set,
+    focus: () => control.focus(),
+  };
+}
+
 export function textarea({ label, value = '', placeholder = '', hint = '', maxlength = 4000, rows = 5, required = false }) {
   const control = h(
     'textarea',

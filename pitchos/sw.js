@@ -9,7 +9,7 @@
 // visit instead of waiting for a background refresh that the browser's HTTP
 // cache (GitHub Pages sends max-age=600) may answer with the old copy.
 
-const CACHE = 'jokbal-shell-v5';
+const CACHE = 'jokbal-shell-v6';
 
 const SHELL = [
   './',
@@ -24,8 +24,10 @@ const SHELL = [
   './js/ui.js',
   './js/lib/crest.js',
   './js/lib/format.js',
+  './js/lib/gpx.js',
   './js/lib/lineup.js',
   './js/lib/pitch.js',
+  './js/lib/quarters.js',
   './js/views/auth.js',
   './js/views/common.js',
   './js/views/home.js',

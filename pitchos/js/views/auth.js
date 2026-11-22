@@ -12,7 +12,28 @@ import {
   toast,
   icon,
   mount,
+  readPrefs,
+  writePrefs,
 } from '../ui.js';
+
+const LAST_EMAIL_KEY = 'lastEmail';
+
+/** 마지막으로 로그인한 이메일과 '로그인 유지' 선택(기본 ON)을 기억한다. */
+function memoryOfLogin() {
+  const prefs = readPrefs();
+  const keep = prefs.rememberLogin !== false;
+  return {
+    keep,
+    email: keep && typeof prefs[LAST_EMAIL_KEY] === 'string' ? prefs[LAST_EMAIL_KEY] : '',
+  };
+}
+
+function rememberLogin(email, keep) {
+  writePrefs({
+    rememberLogin: Boolean(keep),
+    [LAST_EMAIL_KEY]: keep ? String(email || '').trim() : '',
+  });
+}
 
 const PROVIDERS = [
   { id: 'kakao', label: '카카오', className: 'kakao' },
@@ -69,11 +90,13 @@ function legalLink(name, title) {
 export function renderAuth(root, { onSignedIn }) {
   root.classList.add('auth-screen');
   let busy = false;
+  const remembered = memoryOfLogin();
 
   const errorSlot = h('div', { class: 'form-error', hidden: true });
   const emailField = input({
     label: '이메일',
     type: 'email',
+    value: remembered.email,
     placeholder: 'you@example.com',
     inputmode: 'email',
     autocomplete: 'username',
@@ -85,6 +108,11 @@ export function renderAuth(root, { onSignedIn }) {
     placeholder: '6자 이상',
     autocomplete: 'current-password',
     required: true,
+  });
+  const keepLogin = checkbox({
+    label: '로그인 유지',
+    checked: remembered.keep,
+    hint: '이 기기에서 로그인과 이메일을 기억합니다. 공용 기기에서는 끄세요.',
   });
 
   const submitButton = h(
@@ -103,6 +131,7 @@ export function renderAuth(root, { onSignedIn }) {
     { class: 'auth-card', novalidate: true },
     emailField.el,
     passwordField.el,
+    keepLogin.el,
     errorSlot,
     submitButton,
     h(
@@ -132,8 +161,10 @@ export function renderAuth(root, { onSignedIn }) {
     busy = true;
     submitButton.disabled = true;
     submitButton.textContent = '로그인 중…';
+    const keep = keepLogin.checked;
     try {
-      await auth.signIn(emailField.value, passwordField.value);
+      await auth.signIn(emailField.value, passwordField.value, { persist: keep });
+      rememberLogin(emailField.value, keep);
       await onSignedIn();
     } catch (error) {
       showError(error.message);
@@ -221,6 +252,7 @@ export function renderAuth(root, { onSignedIn }) {
 // ---------------------------------------------------------------------------
 
 function openSignUp({ onSignedIn, onNeedConfirm }) {
+  const remembered = memoryOfLogin();
   const nameField = input({
     label: '이름(닉네임)',
     placeholder: '팀에서 보일 이름',
@@ -232,6 +264,7 @@ function openSignUp({ onSignedIn, onNeedConfirm }) {
   const emailField = input({
     label: '이메일',
     type: 'email',
+    value: remembered.email,
     placeholder: 'you@example.com',
     inputmode: 'email',
     autocomplete: 'email',
@@ -325,7 +358,10 @@ function openSignUp({ onSignedIn, onNeedConfirm }) {
     submit.disabled = true;
     submit.textContent = '가입 중…';
     try {
-      const result = await auth.signUp(emailField.value, passwordField.value, name);
+      const result = await auth.signUp(emailField.value, passwordField.value, name, {
+        persist: remembered.keep,
+      });
+      rememberLogin(emailField.value, remembered.keep);
       sheet.close();
       if (result.needsConfirm) onNeedConfirm?.(result.email);
       else await onSignedIn();

@@ -90,6 +90,21 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+  /* iOS Safari는 16px 미만 입력창에 포커스하면 화면을 확대한다. 16px 이상 고정. */
+  font-size: max(16px, 1em);
+  touch-action: manipulation;
+}
+
+/* 두 번 탭 확대(300ms 지연) 막기: 모든 탭 대상 */
+button,
+label,
+a,
+[role='button'],
+.chip,
+.vote-btn,
+.tab-item,
+.step-btn {
+  touch-action: manipulation;
 }
 
 a {
@@ -1791,7 +1806,7 @@ button.member-row:active {
   border-radius: 13px;
   background: var(--surface-2);
   color: var(--ink);
-  font-size: 15px;
+  font-size: 16px;
   letter-spacing: -0.01em;
   outline: none;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
@@ -3013,4 +3028,264 @@ body.sheet-open {
 
 .team-banner-count b {
   font-size: 18px;
+}
+
+/* ------------------------------------------------------------------ stepper (1분 단위 입력) */
+
+.stepper-field {
+  gap: 7px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 50px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  background: var(--surface-2);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stepper:focus-within {
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.13);
+}
+
+.step-btn {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--ink-2);
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.step-btn:active {
+  background: var(--surface-3);
+  transform: scale(0.95);
+}
+
+.step-box {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.step-input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  text-align: right;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+}
+
+.step-input::-webkit-outer-spin-button,
+.step-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.step-suffix {
+  flex: 0 0 auto;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* 칩이 넘치면 가로 스크롤 대신 줄바꿈 */
+.chip-row.chip-wrap {
+  flex-wrap: wrap;
+  overflow: visible;
+  row-gap: 6px;
+}
+
+/* ------------------------------------------------------------------ 경기 시간 계산 블록 */
+
+.plan-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plan-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.plan-note.is-warn {
+  background: var(--red-soft);
+  color: #b42318;
+}
+
+.plan-note-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.plan-state-slot {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.plan-state {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand-strong);
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.plan-state.is-manual {
+  color: var(--amber);
+}
+
+.meta-sub {
+  overflow: hidden;
+  color: var(--ink-4);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ 작은 화면 · 가로 모드 방어 */
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (max-width: 379px) {
+  /* 320~379px: 두 칸 폼을 한 칸으로 내려 잘림·가로 스크롤을 막는다. */
+  .plan-block .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sheet-head {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .sheet-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .step-btn {
+    width: 34px;
+  }
+
+  .hero {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+}
+
+/* 가로로 돌렸을 때: 430px 프레임을 가운데 두고 세로 스크롤만 남긴다. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .app-frame {
+    max-width: 430px;
+    min-height: 100dvh;
+  }
+
+  .sheet {
+    max-width: 430px;
+    max-height: 100dvh;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .sheet-body {
+    padding-bottom: 26px;
+  }
+}
+
+/* ------------------------------------------------------------------ 워치 GPX 업로드 */
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.file-row .btn {
+  flex: 0 0 auto;
+}
+
+.file-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guide {
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.guide summary {
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.guide ol {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.sample-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }

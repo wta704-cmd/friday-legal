@@ -9,6 +9,15 @@ import { state, loadMatches, loadMembers, currentTeam, canManage, memberMap } fr
 import * as fmt from '../lib/format.js';
 import { draftLineup, PER_SIDE } from '../lib/lineup.js';
 import {
+  planQuarters,
+  describePlan,
+  matchTiming,
+  QUARTER_MINUTES,
+  QUARTER_COUNT,
+  BREAK_MINUTES,
+  TOTAL_MINUTES,
+} from '../lib/quarters.js';
+import {
   h,
   badge,
   button,
@@ -23,7 +32,7 @@ import {
   spinner,
   mount,
   input,
-  select,
+  stepper,
   switchToggle,
   pitchBoard,
   avatarStack,
@@ -455,6 +464,10 @@ async function openMatchSheet(match, ctx) {
         const c = counts(rsvps);
         const manager = canManage();
         const closed = isClosed(match);
+        const timing = matchTiming({
+          quarters: match.quarter_count,
+          quarterMinutes: match.quarter_minutes,
+        });
         const rows = [...rsvps].sort((a, b) => {
           const order = { going: 0, late: 1, maybe: 2, declined: 3, no_response: 4 };
           return (order[a.status] ?? 5) - (order[b.status] ?? 5);
@@ -470,7 +483,17 @@ async function openMatchSheet(match, ctx) {
               { class: 'meta-grid' },
               h('div', { class: 'meta-cell' }, h('span', { class: 'meta-label' }, '일시'), h('span', { class: 'meta-value' }, fmt.formatKickoff(match.kickoff_at))),
               h('div', { class: 'meta-cell' }, h('span', { class: 'meta-label' }, '구장'), h('span', { class: 'meta-value' }, match.pitch_name || '구장 미정')),
-              h('div', { class: 'meta-cell' }, h('span', { class: 'meta-label' }, '쿼터'), h('span', { class: 'meta-value' }, `${match.quarter_count} × ${match.quarter_minutes}분`)),
+              h(
+                'div',
+                { class: 'meta-cell' },
+                h('span', { class: 'meta-label' }, '쿼터'),
+                h('span', { class: 'meta-value' }, `${match.quarter_count} × ${match.quarter_minutes}분`),
+                h(
+                  'span',
+                  { class: 'meta-sub' },
+                  `총 ${timing.elapsedMinutes}분 · 휴식 ${timing.breakCount}회`,
+                ),
+              ),
               h('div', { class: 'meta-cell' }, h('span', { class: 'meta-label' }, '방식'), h('span', { class: 'meta-value' }, match.is_indoor ? '실내 · 시간/심박' : '야외 · GPS')),
             ),
             card(
@@ -626,16 +649,97 @@ function openCreateMatch(ctx) {
   });
   const opponent = input({ label: '상대 팀 이름', placeholder: '예: 화이트울브스', maxlength: 40 });
   const pitchName = input({ label: '구장 이름', placeholder: '예: 강남 풋살파크 A구장', maxlength: 60 });
-  const quarterCount = select({
-    label: '쿼터 수',
-    value: '4',
-    options: [2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `${n}쿼터` })),
+  // 시간 계획: 총 경기 시간 · 쿼터 시간 · 쉬는 시간을 넣으면 쿼터 수가 자동으로 맞춰진다.
+  // (120분 · 12분 · 1분 → 9쿼터, 실제 9×12 + 8×1 = 116분)
+  let manualQuarters = null; // null이면 자동 계산, 숫자면 사용자가 직접 조정
+  let plan = planQuarters({
+    totalMinutes: TOTAL_MINUTES.default,
+    quarterMinutes: QUARTER_MINUTES.default,
+    breakMinutes: BREAK_MINUTES.default,
   });
-  const quarterMinutes = select({
+
+  const planNoteText = h('span', { class: 'plan-note-text' });
+  const planState = h('span', { class: 'plan-state' });
+  const planReset = h(
+    'button',
+    {
+      class: 'link-btn',
+      type: 'button',
+      onclick: () => {
+        manualQuarters = null;
+        syncPlan();
+      },
+    },
+    '자동으로',
+  );
+
+  const totalField = stepper({
+    label: '총 경기 시간',
+    value: plan.totalMinutes,
+    min: TOTAL_MINUTES.min,
+    max: TOTAL_MINUTES.max,
+    step: 5,
+    chips: [60, 90, 120, 150, 180],
+    onChange: () => {
+      manualQuarters = null;
+      syncPlan();
+    },
+  });
+  const quarterField = stepper({
     label: '쿼터 시간',
-    value: '12',
-    options: [8, 10, 12, 15, 20, 25].map((n) => ({ value: String(n), label: `${n}분` })),
+    value: plan.quarterMinutes,
+    min: QUARTER_MINUTES.min,
+    max: QUARTER_MINUTES.max,
+    step: 1,
+    chips: [10, 11, 12, 13, 14, 15],
+    onChange: () => {
+      manualQuarters = null;
+      syncPlan();
+    },
   });
+  const breakField = stepper({
+    label: '쉬는 시간',
+    value: plan.breakMinutes,
+    min: BREAK_MINUTES.min,
+    max: BREAK_MINUTES.max,
+    step: 1,
+    chips: [0, 1, 2, 3],
+    onChange: () => {
+      manualQuarters = null;
+      syncPlan();
+    },
+  });
+  const countField = stepper({
+    label: '쿼터 수',
+    ariaLabel: '쿼터 수',
+    value: plan.quarters,
+    min: QUARTER_COUNT.min,
+    max: QUARTER_COUNT.max,
+    step: 1,
+    hint: '총 경기 시간에서 자동으로 계산됩니다. − / + 로 직접 조정해도 됩니다.',
+    onChange: (value) => {
+      manualQuarters = value;
+      syncPlan();
+    },
+  });
+  const planNote = h('div', { class: 'plan-note' }, planNoteText, h('span', { class: 'plan-state-slot' }, planState, planReset));
+
+  function syncPlan() {
+    plan = planQuarters({
+      totalMinutes: totalField.value,
+      quarterMinutes: quarterField.value,
+      breakMinutes: breakField.value,
+      quarters: manualQuarters,
+    });
+    countField.set(plan.quarters, { silent: true });
+    planNoteText.textContent = describePlan(plan);
+    planState.textContent = plan.manual ? '직접 조정' : '자동 계산';
+    planState.classList.toggle('is-manual', plan.manual);
+    planReset.hidden = !plan.manual;
+    planNote.classList.toggle('is-warn', plan.spareMinutes < 0);
+  }
+  syncPlan();
+
   let indoor = false;
 
   const sheet = openSheet({
@@ -650,7 +754,13 @@ function openCreateMatch(ctx) {
           kickoff.el,
           opponent.el,
           pitchName.el,
-          h('div', { class: 'field-row' }, quarterCount.el, quarterMinutes.el),
+          h(
+            'div',
+            { class: 'plan-block' },
+            h('div', { class: 'field-row' }, totalField.el, quarterField.el),
+            h('div', { class: 'field-row' }, breakField.el, countField.el),
+            planNote,
+          ),
           h(
             'div',
             { class: 'share-row' },
@@ -677,6 +787,13 @@ function openCreateMatch(ctx) {
                 toast('지난 시각으로는 만들 수 없습니다.', { kind: 'error' });
                 return;
               }
+              if (plan.spareMinutes < 0) {
+                toast('총 경기 시간이 실제 진행 시간보다 짧습니다. 쿼터 수나 쿼터 시간을 조정해 주세요.', {
+                  kind: 'error',
+                  ms: 4400,
+                });
+                return;
+              }
               target.disabled = true;
               try {
                 await matchesApi.create({
@@ -685,8 +802,8 @@ function openCreateMatch(ctx) {
                   kickoff: iso,
                   pitchName: pitchName.value.trim(),
                   indoor,
-                  quarterCount: Number(quarterCount.value),
-                  quarterMinutes: Number(quarterMinutes.value),
+                  quarterCount: plan.quarters,
+                  quarterMinutes: quarterField.value,
                   opponent: opponent.value.trim(),
                 });
                 toast('경기를 만들었습니다.', { kind: 'ok' });

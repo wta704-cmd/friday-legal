@@ -22,28 +22,79 @@ export class ApiError extends Error {
 // ---------------------------------------------------------------------------
 // Session
 // ---------------------------------------------------------------------------
+//
+// 세션은 localStorage에 둔다: 아이폰에서 탭을 닫거나 홈 화면(PWA)에서 나갔다 와도
+// 로그인이 유지된다. '로그인 유지'를 끄면 sessionStorage로 들어가 탭과 함께 끝난다.
+//
+// Safari는 탭과 홈 화면 앱을 동시에 살려 둘 수 있고, 마지막에 갱신한 쪽만 유효한
+// refresh_token을 가진다. 그래서 ① 시작할 때 두 저장소를 모두 읽고, ② storage
+// 이벤트로 다른 탭의 갱신을 메모리에 반영하고, ③ 갱신 직전에 저장소를 다시 읽어
+// 이미 회전된 토큰이면 그 토큰을 쓴다(이전 토큰 재사용은 세션 폐기로 이어진다).
 
 let session = null;
+let persistSession = true; // '로그인 유지' 기본 ON
+
+function readRaw(kind) {
+  try {
+    const store = kind === 'tab' ? window.sessionStorage : window.localStorage;
+    return store.getItem(SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function parseSession(raw) {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw);
+    return value && value.access_token ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function storedSession() {
+  return parseSession(readRaw('local')) || parseSession(readRaw('tab'));
+}
+
+function storageKind() {
+  if (readRaw('local')) return 'local';
+  if (readRaw('tab')) return 'tab';
+  return persistSession ? 'local' : 'tab';
+}
+
+function writeRaw(entry, kind = null) {
+  const target = entry ? kind || storageKind() : null;
+  try {
+    if (!entry) {
+      window.localStorage.removeItem(SESSION_KEY);
+      window.sessionStorage.removeItem(SESSION_KEY);
+      return;
+    }
+    const raw = JSON.stringify(entry);
+    if (target === 'tab') {
+      window.sessionStorage.setItem(SESSION_KEY, raw);
+      window.localStorage.removeItem(SESSION_KEY);
+    } else {
+      window.localStorage.setItem(SESSION_KEY, raw);
+      window.sessionStorage.removeItem(SESSION_KEY);
+    }
+  } catch {
+    /* 사파리 프라이빗 모드: 메모리 세션으로 이 탭에서만 동작한다 */
+  }
+}
 
 export function getSession() {
   if (session) return session;
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    session = raw ? JSON.parse(raw) : null;
-  } catch {
-    session = null;
-  }
+  session = storedSession();
   return session;
 }
 
-function saveSession(next) {
+function saveSession(next, { persist = null } = {}) {
+  if (persist !== null) persistSession = Boolean(persist);
   session = next;
-  try {
-    if (next) localStorage.setItem(SESSION_KEY, JSON.stringify(next));
-    else localStorage.removeItem(SESSION_KEY);
-  } catch {
-    /* private mode: the in-memory session still works for this tab */
-  }
+  writeRaw(next, next ? (persist === null ? storageKind() : persist ? 'local' : 'tab') : null);
+  scheduleRefresh(next);
   return session;
 }
 
@@ -158,31 +209,87 @@ function toError(status, data) {
 // Token refresh
 // ---------------------------------------------------------------------------
 
+// 만료 5분 전에 미리 갱신한다. iOS는 백그라운드에서 타이머를 멈추므로 이 타이머는
+// 보조 수단이고, 확실한 갱신은 ① 요청 직전(authorize) ② 앱이 다시 앞으로 나올 때
+// (app.js의 visibilitychange/pageshow) ③ 401 응답 후 재시도에서 이뤄진다.
+const REFRESH_LEAD_MS = 5 * 60_000;
+let refreshTimer = null;
 let refreshPromise = null;
 
+function scheduleRefresh(entry) {
+  if (typeof window === 'undefined' || !window.setTimeout) return;
+  if (refreshTimer) window.clearTimeout(refreshTimer);
+  refreshTimer = null;
+  if (!entry?.expires_at) return;
+  const delay = entry.expires_at - Date.now() - REFRESH_LEAD_MS;
+  refreshTimer = window.setTimeout(
+    () => {
+      refreshTimer = null;
+      if (!getSession()) return;
+      refreshSession().catch(() => undefined);
+    },
+    Math.max(2_000, Math.min(delay, 6 * 3_600_000)),
+  );
+}
+
+function sessionExpired() {
+  return new ApiError('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.', {
+    status: 401,
+    code: 'session_expired',
+  });
+}
+
 export async function refreshSession() {
-  const current = getSession();
-  if (!current?.refresh_token) {
-    clearSession();
-    throw new ApiError('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.', {
-      status: 401,
-      code: 'session_expired',
-    });
-  }
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
+    const current = getSession();
+    if (!current?.refresh_token) {
+      clearSession();
+      throw sessionExpired();
+    }
+
+    // 다른 탭(또는 홈 화면 앱)이 먼저 갱신해 저장소가 더 새로우면 그 토큰을 쓴다.
+    const stored = storedSession();
+    if (
+      stored?.access_token &&
+      stored.refresh_token !== current.refresh_token &&
+      (!stored.expires_at || stored.expires_at > Date.now() + 30_000)
+    ) {
+      session = stored;
+      scheduleRefresh(stored);
+      return stored;
+    }
+
     const { ok, status, data } = await send(
       buildUrl('auth', '/token?grant_type=refresh_token'),
       { method: 'POST', body: { refresh_token: current.refresh_token } },
     );
+
     if (!ok || !data?.access_token) {
+      // 회전 경합: 방금 다른 곳이 갱신해 저장소에 새 토큰이 들어왔다면 그걸 채택한다.
+      const newer = storedSession();
+      if (
+        newer?.access_token &&
+        newer.refresh_token &&
+        newer.refresh_token !== current.refresh_token &&
+        (!newer.expires_at || newer.expires_at > Date.now())
+      ) {
+        session = newer;
+        scheduleRefresh(newer);
+        return newer;
+      }
+      // 서버 장애는 세션을 지우지 않는다 — 다음 요청에서 다시 시도한다.
+      if (status >= 500) {
+        throw new ApiError('서버에서 로그인 연장을 처리하지 못했습니다. 잠시 뒤 다시 시도해 주세요.', {
+          status,
+        });
+      }
+      // 400/401(invalid_grant 등)만 진짜 만료다.
       clearSession();
-      throw new ApiError('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.', {
-        status: 401,
-        code: 'session_expired',
-      });
+      throw sessionExpired();
     }
+
     return saveSession({
       access_token: data.access_token,
       refresh_token: data.refresh_token || current.refresh_token,
@@ -190,12 +297,33 @@ export async function refreshSession() {
       user: data.user
         ? { id: data.user.id, email: data.user.email }
         : current.user,
+      refreshed_at: Date.now(),
     });
   })().finally(() => {
     refreshPromise = null;
   });
 
   return refreshPromise;
+}
+
+/**
+ * 앱이 다시 앞으로 나올 때 부른다. 만료가 가까우면 먼저 갱신하고, 오프라인처럼
+ * 서버에 닿지 못한 경우에는 지금 세션 그대로 돌려준다(로그아웃시키지 않는다).
+ */
+export async function ensureFreshSession({ leadMs = 10 * 60_000 } = {}) {
+  const current = getSession();
+  if (!current?.access_token) return null;
+  const due = !Number.isFinite(current.expires_at) || current.expires_at - Date.now() < leadMs;
+  if (!due) {
+    scheduleRefresh(current);
+    return current;
+  }
+  try {
+    return await refreshSession();
+  } catch (error) {
+    if (error instanceof ApiError && error.isAuthError) throw error;
+    return current;
+  }
 }
 
 async function accessToken() {
@@ -252,27 +380,32 @@ function qs(params) {
 // Auth
 // ---------------------------------------------------------------------------
 
-function adopt(entry) {
-  return saveSession({
-    access_token: entry.access_token,
-    refresh_token: entry.refresh_token,
-    expires_at: Date.now() + (Number(entry.expires_in) || 3600) * 1000,
-    user: entry.user ? { id: entry.user.id, email: entry.user.email } : null,
-  });
+function adopt(entry, { persist = null } = {}) {
+  return saveSession(
+    {
+      access_token: entry.access_token,
+      refresh_token: entry.refresh_token,
+      expires_at: Date.now() + (Number(entry.expires_in) || 3600) * 1000,
+      user: entry.user ? { id: entry.user.id, email: entry.user.email } : null,
+      signed_in_at: Date.now(),
+    },
+    { persist },
+  );
 }
 
 export const auth = {
-  async signIn(email, password) {
+  /** @param {{persist?: boolean}} opts persist=false면 이 탭에서만 로그인 유지 */
+  async signIn(email, password, { persist = true } = {}) {
     const { ok, status, data } = await send(buildUrl('auth', '/token?grant_type=password'), {
       method: 'POST',
       body: { email: email.trim(), password },
     });
     if (!ok || !data?.access_token) throw toError(status, data);
-    return adopt(data);
+    return adopt(data, { persist });
   },
 
   /** @returns {{ needsConfirm: boolean, email: string }} */
-  async signUp(email, password, displayName) {
+  async signUp(email, password, displayName, { persist = true } = {}) {
     const { ok, status, data } = await send(buildUrl('auth', '/signup'), {
       method: 'POST',
       body: {
@@ -283,7 +416,7 @@ export const auth = {
     });
     if (!ok) throw toError(status, data);
     if (data?.access_token) {
-      adopt(data);
+      adopt(data, { persist });
       return { needsConfirm: false, email };
     }
     // Email confirmation is on: no session until the link in the mail is opened.
@@ -572,6 +705,66 @@ export const sessions = {
       })}`,
     );
   },
+
+  /**
+   * 애플워치·건강 앱에서 내보낸 GPX를 요약해 세션 1행 + 쿼터 N행으로 저장한다.
+   * (RLS: player_sessions.user_id / quarter_stats.user_id = auth.uid())
+   * @param {{matchId?: string|null, analysis: object, deviceModel?: string,
+   *          shareWithTeam?: boolean, clientSessionUuid?: string}} input
+   */
+  async uploadWatch({ matchId = null, analysis, deviceModel = 'Apple Watch', shareWithTeam = false, clientSessionUuid = null }) {
+    const uid = currentUser()?.id;
+    if (!uid) throw new ApiError('로그인이 필요합니다.', { status: 401 });
+    if (!analysis?.quarters?.length) throw new ApiError('분석할 기록이 없습니다.', { status: 400 });
+
+    const startedAt = new Date(analysis.startedAt).toISOString();
+    const endedAt = new Date(analysis.endedAt).toISOString();
+    const seconds = Math.max(1, (analysis.endedAt - analysis.startedAt) / 1000);
+    // sample_rate_hz는 numeric(3,2) 0.2~10: 워치는 보통 1Hz, 3초 간격 파일이면 0.33Hz.
+    const sampleRate = Math.min(10, Math.max(0.2, Math.round((analysis.pointCount / seconds) * 100) / 100));
+
+    const inserted = await request(`/player_sessions${qs({ select: 'id' })}`, {
+      method: 'POST',
+      prefer: 'return=representation',
+      body: {
+        match_id: matchId || null,
+        user_id: uid,
+        client_session_uuid: clientSessionUuid || crypto.randomUUID(),
+        platform: 'apple',
+        device_model: String(deviceModel || 'Apple Watch').slice(0, 80),
+        is_indoor: false,
+        share_with_team: Boolean(shareWithTeam),
+        sample_rate_hz: sampleRate,
+        started_at: startedAt,
+        ended_at: endedAt,
+        point_count: analysis.pointCount,
+        record_source: 'watch',
+        sync_policy: 'summary_only',
+        engine_version: 'web-gpx-1.0.0',
+      },
+    });
+    const sessionId = inserted?.[0]?.id;
+    if (!sessionId) throw new ApiError('세션을 저장하지 못했습니다.', { status: 500 });
+
+    const rows = analysis.quarters.map((quarter) => ({
+      session_id: sessionId,
+      match_id: matchId || null,
+      user_id: uid,
+      quarter: quarter.quarter,
+      is_rest: false,
+      active_seconds: quarter.activeSeconds,
+      distance_m: quarter.distanceM,
+      distance_per_min: quarter.distancePerMin,
+      top_speed_kmh: quarter.topSpeedKmh,
+      sprint_count: quarter.sprintCount,
+      avg_heart_rate: quarter.avgHeartRate,
+      max_heart_rate: quarter.maxHeartRate,
+      engine_version: 'web-gpx-1.0.0',
+    }));
+    await request('/quarter_stats', { method: 'POST', prefer: 'return=minimal', body: rows });
+
+    return { sessionId, quarterCount: rows.length };
+  },
 };
 
 export const support = {
@@ -634,3 +827,15 @@ export const account = {
 };
 
 export { accessToken };
+
+// 다른 탭/홈 화면 앱이 세션을 갱신하거나 로그아웃하면 메모리에 바로 반영한다.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== SESSION_KEY) return;
+    const next = parseSession(event.newValue);
+    session = next;
+    scheduleRefresh(next);
+  });
+  // 이 탭이 잠들어 있는 동안 만료가 지나면, 열려 있는 채로 시간이 흘러도 끊기지 않게.
+  if (storedSession()) scheduleRefresh(getSession());
+}
