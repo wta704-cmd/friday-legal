@@ -914,6 +914,7 @@ button.list-row:active {
 
 .hero-side-name {
   overflow: hidden;
+  display: block;
   font-size: 16px;
   font-weight: 750;
   letter-spacing: -0.03em;

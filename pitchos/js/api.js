@@ -377,6 +377,73 @@ function qs(params) {
 }
 
 // ---------------------------------------------------------------------------
+// Social sign-in
+// ---------------------------------------------------------------------------
+//
+// 구글·카카오는 Supabase Auth의 OAuth를, 네이버는 Supabase에 네이버 provider가
+// 없어서 우리 `naver-oauth` Edge Function을 쓴다. 두 경로 모두 PKCE(S256) 코드
+// 교환으로 끝나므로 토큰이 URL에 실리지 않는다. 코드 검증기(verifier)와 돌아올
+// 주소는 이 탭의 sessionStorage에만 두고 15분이 지나면 버린다.
+
+const OAUTH_KEY = 'pitchos.oauth.v1';
+const OAUTH_TTL_MS = 15 * 60 * 1000;
+
+function base64url(bytes) {
+  let text = '';
+  for (const byte of bytes) text += String.fromCharCode(byte);
+  return btoa(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function randomToken(byteLength) {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return base64url(bytes);
+}
+
+async function pkceChallenge(verifier) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  return base64url(new Uint8Array(digest));
+}
+
+/** Edge Function과 Supabase가 돌려주는 짧은 오류 코드를 사용자가 읽을 문장으로. */
+function oauthMessage(code) {
+  const messages = {
+    access_denied: '로그인을 취소하셨습니다.',
+    naver_canceled: '네이버 로그인을 취소하셨습니다.',
+    naver_not_configured: '네이버 로그인이 아직 설정되지 않았습니다.',
+    naver_email_required: '네이버 계정에서 이메일 제공에 동의해야 로그인할 수 있습니다.',
+    naver_token_failed: '네이버 인증에 실패했습니다. 다시 시도해 주세요.',
+    naver_code_failed: '로그인 처리에 실패했습니다. 다시 시도해 주세요.',
+    naver_user_lookup_failed: '계정을 확인하지 못했습니다. 다시 시도해 주세요.',
+    naver_user_create_failed: '계정을 만들지 못했습니다. 다시 시도해 주세요.',
+    redirect_not_allowed: '이 주소에서는 소셜 로그인을 쓸 수 없습니다.',
+    invalid_state: '로그인 요청이 만료되었습니다. 다시 시도해 주세요.',
+    code_challenge_required: '브라우저가 로그인 요청을 확인하지 못했습니다. 다시 시도해 주세요.',
+  };
+  return messages[code] || `로그인에 실패했습니다. (${code})`;
+}
+
+function readOAuthContext() {
+  try {
+    const raw = window.sessionStorage.getItem(OAUTH_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearOAuthContext() {
+  try {
+    window.sessionStorage.removeItem(OAUTH_KEY);
+  } catch {
+    /* 저장소를 못 쓰는 브라우저도 있다: 이 경우 로그인만 실패하고 앱은 그대로 */
+  }
+}
+
+/** 단위 테스트용 내부 함수 공개(RFC 7636 벡터 검증). 런타임 동작에는 영향이 없다. */
+export const socialPkce = { base64url, randomToken, pkceChallenge };
+
+// ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
 
@@ -402,6 +469,96 @@ export const auth = {
     });
     if (!ok || !data?.access_token) throw toError(status, data);
     return adopt(data, { persist });
+  },
+
+  /**
+   * 소셜 로그인을 시작한다. 지금 페이지를 provider로 넘기고, 돌아오면
+   * finishSocial()이 URL의 코드를 세션으로 바꾼다.
+   */
+  async startSocial(provider, { returnTo } = {}) {
+    const verifier = randomToken(48);
+    const state = randomToken(18);
+    const back = returnTo || `${window.location.origin}${window.location.pathname}`;
+    try {
+      window.sessionStorage.setItem(
+        OAUTH_KEY,
+        JSON.stringify({ provider, verifier, state, returnTo: back, at: Date.now() }),
+      );
+    } catch {
+      throw new ApiError('브라우저 저장소를 쓸 수 없어 소셜 로그인을 시작하지 못했습니다.', {
+        code: 'storage_unavailable',
+      });
+    }
+    const params = new URLSearchParams({
+      redirect_to: back,
+      code_challenge: await pkceChallenge(verifier),
+      code_challenge_method: 's256',
+      state,
+    });
+    if (provider === 'naver') {
+      window.location.assign(buildUrl('functions', `/naver-oauth/authorize?${params}`));
+      return;
+    }
+    params.set('provider', provider);
+    window.location.assign(buildUrl('auth', `/authorize?${params}`));
+  },
+
+  /**
+   * 소셜 로그인 콜백을 세션으로 바꾼다. 콜백이 아니면 null.
+   * URL의 code·error는 곧바로 지워서 새로고침으로 재사용되지 않게 한다.
+   */
+  async finishSocial() {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get('code');
+    const errorParam = url.searchParams.get('error');
+    if (!code && !errorParam) return null;
+
+    const context = readOAuthContext();
+    clearOAuthContext();
+    const clean = context?.returnTo || `${url.origin}${url.pathname}`;
+    window.history.replaceState(null, '', `${clean}${url.hash || ''}`);
+
+    if (errorParam) throw new ApiError(oauthMessage(errorParam), { code: errorParam });
+    if (!context || !code) {
+      throw new ApiError('로그인 정보를 찾지 못했습니다. 다시 시도해 주세요.', {
+        code: 'oauth_context_missing',
+      });
+    }
+    if (Date.now() - Number(context.at || 0) > OAUTH_TTL_MS) {
+      throw new ApiError('로그인 시간이 만료되었습니다. 다시 시도해 주세요.', { code: 'oauth_expired' });
+    }
+    const returnedState = url.searchParams.get('state');
+    if (context.state && returnedState && context.state !== returnedState) {
+      throw new ApiError('로그인 요청이 일치하지 않습니다. 다시 시도해 주세요.', {
+        code: 'oauth_state_mismatch',
+      });
+    }
+
+    if (context.provider === 'naver') {
+      // 네이버는 일회성 코드 → (검증기로) 세션 교환 두 단계다.
+      const exchanged = await send(buildUrl('functions', '/naver-oauth/exchange'), {
+        method: 'POST',
+        body: { code, code_verifier: context.verifier },
+      });
+      if (!exchanged.ok || !exchanged.data?.token_hash) throw toError(exchanged.status, exchanged.data);
+      const verified = await send(buildUrl('auth', '/verify'), {
+        method: 'POST',
+        body: {
+          type: exchanged.data.type || 'magiclink',
+          token_hash: exchanged.data.token_hash,
+        },
+      });
+      if (!verified.ok || !verified.data?.access_token) throw toError(verified.status, verified.data);
+      return adopt(verified.data, { persist: true });
+    }
+
+    // 구글·카카오: Supabase Auth가 돌려준 인증 코드를 PKCE로 교환한다.
+    const issued = await send(buildUrl('auth', '/token?grant_type=pkce'), {
+      method: 'POST',
+      body: { auth_code: code, code_verifier: context.verifier },
+    });
+    if (!issued.ok || !issued.data?.access_token) throw toError(issued.status, issued.data);
+    return adopt(issued.data, { persist: true });
   },
 
   /** @returns {{ needsConfirm: boolean, email: string }} */

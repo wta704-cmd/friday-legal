@@ -147,9 +147,17 @@ async function boot() {
     ),
   );
 
+  // 소셜 로그인으로 돌아온 페이지라면 URL의 코드를 먼저 세션으로 바꾼다.
+  let socialNotice = null;
+  try {
+    await auth.finishSocial();
+  } catch (error) {
+    socialNotice = error?.message || '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
+  }
+
   const session = getSession();
   if (!session) {
-    renderAuth(root, { onSignedIn: onSignedIn });
+    renderAuth(root, { onSignedIn: onSignedIn, notice: socialNotice });
     return;
   }
 
@@ -172,8 +180,7 @@ async function boot() {
       clearSession();
       renderAuth(root, { onSignedIn: onSignedIn });
       return;
-    }
-    mount(
+    }    mount(
       root,
       h(
         'div',

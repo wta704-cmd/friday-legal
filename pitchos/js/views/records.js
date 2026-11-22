@@ -270,6 +270,7 @@ function openWatchUpload(ctx) {
     min: 1,
     max: 20,
     step: 1,
+    suffix: '쿼터',
     hint: '고른 경기의 쿼터 수가 기본값입니다. 녹음이 다르면 − / + 로 맞춰 주세요.',
     onChange: () => {
       if (gpxText) parse();
@@ -444,7 +445,7 @@ function openWatchUpload(ctx) {
           h(
             'div',
             { class: 'sample-row' },
-            h('span', { class: 'field-hint' }, '내일 바로 테스트할 수 있는 풋살 샘플 기록'),
+            h('span', { class: 'field-hint' }, '테스트용 풋살 샘플 기록(4쿼터·심박 포함)'),
             h('a', { class: 'link-btn', href: SAMPLE_GPX.href, download: 'JOKBAL_풋살_샘플.gpx' }, '샘플 GPX 내려받기'),
           ),
           h('p', { class: 'hint-box' }, '정확도를 높이려면 경기 시작과 동시에 워치 운동을 시작하고, 경기가 끝나면 바로 종료해 주세요.'),

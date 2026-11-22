@@ -36,10 +36,11 @@ function rememberLogin(email, keep) {
 }
 
 const PROVIDERS = [
-  { id: 'kakao', label: '카카오', className: 'kakao' },
-  { id: 'naver', label: '네이버', className: 'naver' },
-  { id: 'google', label: '구글', className: 'google' },
-  { id: 'apple', label: 'Apple', className: 'apple' },
+  { id: 'kakao', label: '카카오', className: 'kakao', enabled: true },
+  { id: 'naver', label: '네이버', className: 'naver', enabled: true },
+  { id: 'google', label: '구글', className: 'google', enabled: true },
+  // Apple은 Apple Developer 계정과 Supabase Apple provider 키가 등록되어야 열린다.
+  { id: 'apple', label: 'Apple', className: 'apple', enabled: false },
 ];
 
 export function openLegal(name, title) {
@@ -87,7 +88,7 @@ function legalLink(name, title) {
   );
 }
 
-export function renderAuth(root, { onSignedIn }) {
+export function renderAuth(root, { onSignedIn, notice = '' }) {
   root.classList.add('auth-screen');
   let busy = false;
   const remembered = memoryOfLogin();
@@ -125,6 +126,8 @@ export function renderAuth(root, { onSignedIn }) {
     errorSlot.textContent = message;
     errorSlot.hidden = false;
   }
+
+  if (notice) showError(notice);
 
   const form = h(
     'form',
@@ -233,14 +236,33 @@ export function renderAuth(root, { onSignedIn }) {
               {
                 class: `social-btn ${provider.className}`,
                 type: 'button',
-                'aria-label': `${provider.label} 로그인 (준비 중)`,
-                onclick: () => toast('소셜 로그인은 준비 중입니다. 지금은 이메일로 로그인해 주세요.', { ms: 3200 }),
+                'aria-label': provider.enabled
+                  ? `${provider.label} 로그인`
+                  : `${provider.label} 로그인 (준비 중)`,
+                onclick: async (event) => {
+                  if (!provider.enabled) {
+                    toast('Apple 로그인은 준비 중입니다. 다른 방법으로 로그인해 주세요.', { ms: 3200 });
+                    return;
+                  }
+                  const button = event.currentTarget;
+                  button.disabled = true;
+                  try {
+                    await auth.startSocial(provider.id);
+                  } catch (error) {
+                    button.disabled = false;
+                    showError(error?.message || '소셜 로그인을 시작하지 못했습니다.');
+                  }
+                },
               },
               provider.label,
             ),
           ),
         ),
-        h('p', { class: 'social-note' }, '카카오·네이버·구글·Apple 로그인은 준비 중입니다. 콘솔 키 등록 후 열립니다.'),
+        h(
+          'p',
+          { class: 'social-note' },
+          '카카오·네이버·구글 계정으로 로그인할 수 있습니다. Apple 로그인은 준비 중입니다.',
+        ),
       ),
       h('p', { class: 'auth-foot' }, `웹 버전 ${APP_VERSION} · Safari 공유 → [홈 화면에 추가]로 앱처럼 사용하세요.`),
     ),
