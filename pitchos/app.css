@@ -1162,22 +1162,22 @@ button.list-row:active {
 
 .vote-btn.is-active.vote-ok {
   background: var(--green);
-  box-shadow: 0 8px 16px -10px rgba(16, 165, 92, 0.9);
+  box-shadow: var(--shadow-2);
 }
 
 .vote-btn.is-active.vote-warn {
   background: var(--amber);
-  box-shadow: 0 8px 16px -10px rgba(217, 119, 6, 0.9);
+  box-shadow: var(--shadow-2);
 }
 
 .vote-btn.is-active.vote-muted {
   background: var(--ink-2);
-  box-shadow: 0 8px 16px -10px rgba(51, 65, 85, 0.9);
+  box-shadow: var(--shadow-2);
 }
 
 .vote-btn.is-active.vote-bad {
   background: var(--red);
-  box-shadow: 0 8px 16px -10px rgba(229, 72, 77, 0.9);
+  box-shadow: var(--shadow-2);
 }
 
 .vote-note {
@@ -2008,7 +2008,7 @@ button.member-row:active {
 .input:focus {
   border-color: var(--brand);
   background: var(--surface);
-  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.13);
+  box-shadow: 0 0 0 3.5px rgba(34, 197, 94, 0.18);
 }
 
 select.input {
@@ -3236,7 +3236,7 @@ body.sheet-open {
 .stepper:focus-within {
   border-color: var(--brand);
   background: var(--surface);
-  box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.13);
+  box-shadow: 0 0 0 3.5px rgba(34, 197, 94, 0.18);
 }
 
 .step-btn {
