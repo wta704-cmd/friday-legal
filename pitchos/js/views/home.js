@@ -223,7 +223,7 @@ function attendanceBlock(rows, onOpen) {
           h(
             'span',
             { class: 'row', style: { gap: '8px' } },
-            avatarStack(attending(rows)),
+            avatarStack(attending(rows), { max: 4 }),
             h(
               'span',
               { class: 'attend-figure' },
