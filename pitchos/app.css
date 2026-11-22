@@ -670,9 +670,11 @@ p {
   background: var(--ink-2);
 }
 
-.badge-dday {
-  color: var(--ink);
-  background: var(--neon);
+/* 다크 히어로 위에서는 차콜 배지가 묻히므로 반투명 흰 면으로 바꾼다. */
+.hero .badge-closed {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  backdrop-filter: blur(6px);
 }
 
 .badge-solid {

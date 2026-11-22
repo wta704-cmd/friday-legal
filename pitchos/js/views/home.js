@@ -281,8 +281,9 @@ function heroCard(match, team) {
       h(
         'span',
         { class: 'hero-deadline' },
-        icon('clock', { size: 12 }),
-        dl.closed ? '투표 마감' : dl.text,
+        dl.closed
+          ? h('span', { class: 'badge badge-closed' }, '마감')
+          : [icon('clock', { size: 12 }), dl.text],
       ),
     ),
     // 스코어 자리에 킥오프 시각을 크게 둔다. 팀 이름은 좌우로, 시각이 경기의 중심.
