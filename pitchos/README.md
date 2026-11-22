@@ -60,8 +60,14 @@ node --test "web/tests/*.test.js"
 
 ## 배포
 
-정적 파일이므로 아무 HTTPS 정적 호스팅이나 됩니다. 현재 배포: **GitHub Pages**
-(프론트엔드 전용 공개 저장소 `wta704-cmd/pitch-os-web`).
+정적 파일이므로 아무 HTTPS 정적 호스팅이나 됩니다.
+
+현재 배포: **GitHub Pages** — `https://wta704-cmd.github.io/friday-legal/pitchos/`
+
+Pickle의 GitHub 연결에는 저장소 생성·Pages 활성화 권한이 없어서, Pages가 이미 켜져 있는 공개
+저장소 `wta704-cmd/friday-legal`의 `pitchos/` 하위 경로에 사본을 올려 배포했습니다(그 폴더의
+`DEPLOY-NOTE.md` 참고). 전용 저장소(`pitch-os-web`)로 옮기려면 저장소를 만들고 Settings →
+Pages(main / root)를 켠 뒤 이 폴더 내용을 루트에 푸시하면 됩니다.
 
 - GitHub Pages: `web/` 내용을 저장소 루트로 올리고 Settings → Pages → Branch `main` / `/root`.
 - Cloudflare Pages: 루트 `web`, 빌드 명령 없음, 출력 디렉터리 `web`.
