@@ -10,7 +10,7 @@ export const SUPABASE_URL = 'https://zsmoaipnnsqiwvqninzw.supabase.co';
 export const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzbW9haXBubnNxaXd2cW5pbnp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyODM0NDYsImV4cCI6MjExMDg1OTQ0Nn0.oxM9y16vkSHwUjrguzm_68lW9__2cLARoN3HwZp66Js';
 
-export const APP_VERSION = 'web-0.3.0';
+export const APP_VERSION = 'web-0.4.0';
 
 export const SESSION_KEY = 'pitchos.web.session.v1';
 export const PREFS_KEY = 'pitchos.web.prefs.v1';

@@ -996,6 +996,22 @@ button.list-row:active {
   font-weight: 600;
 }
 
+/* 히어로 카드 안의 '경기 수정' — 운영진에게만 보인다. */
+.hero-edit {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 2px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.hero-edit:active {
+  background: rgba(255, 255, 255, 0.24);
+}
+
 .hero-matchup {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -1579,8 +1595,21 @@ button.list-row:active {
   border-top: 0;
 }
 
-button.member-row:active {
+button.member-row:active,
+div.member-row[role='button']:active {
   background: var(--surface-2);
+}
+
+/* 일정 목록의 수정 버튼 — 행 전체 클릭(상세 열기)과 겹치지 않게 따로 둔다. */
+.member-edit {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  background: var(--surface-2);
+}
+
+.member-edit + .chev {
+  margin-left: -4px;
 }
 
 .member-row.is-inactive {
@@ -3471,6 +3500,20 @@ body {
   font-size: 12.5px;
   font-weight: 650;
   cursor: pointer;
+}
+
+/* 워치 GPX 안내는 접지 않고 한 가지 경로만 바로 보여 준다. */
+.guide .guide-title {
+  display: block;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.guide .guide-note {
+  margin: 8px 0 0;
+  color: var(--ink-4);
+  font-size: 11.5px;
 }
 
 .guide ol {

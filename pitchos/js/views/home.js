@@ -8,6 +8,7 @@ import { matches as matchesApi, pitches as pitchesApi } from '../api.js';
 import { state, loadMatches, loadMembers, currentTeam, canManage, memberMap } from '../store.js';
 import * as fmt from '../lib/format.js';
 import { draftLineup, PER_SIDE } from '../lib/lineup.js';
+import { buildMatchPatch, autoTitle, defaultDeadline } from '../lib/matchEdit.js';
 import {
   planQuarters,
   describePlan,
@@ -264,7 +265,7 @@ function heroSide(name, logoUrl, label, away = false) {
   );
 }
 
-function heroCard(match, team) {
+function heroCard(match, team, onEdit = null) {
   const d = dday(match.kickoff_at);
   const dl = fmt.deadlineState(match.rsvp_deadline_at);
   const practice = match.kind === 'practice';
@@ -285,6 +286,13 @@ function heroCard(match, team) {
           ? h('span', { class: 'badge badge-closed' }, '마감')
           : [icon('clock', { size: 12 }), dl.text],
       ),
+      onEdit
+        ? h(
+            'button',
+            { class: 'hero-edit', type: 'button', 'aria-label': '경기 수정', onclick: onEdit },
+            icon('edit', { size: 14 }),
+          )
+        : null,
     ),
     // 스코어 자리에 킥오프 시각을 크게 둔다. 팀 이름은 좌우로, 시각이 경기의 중심.
     h(
@@ -510,6 +518,17 @@ async function openMatchSheet(match, ctx) {
               voteControl(match, rsvps, draw),
               attendanceBlock(rsvps),
             ),
+            manager
+              ? button('경기 수정', {
+                  kind: 'ghost',
+                  block: true,
+                  iconName: 'edit',
+                  onClick: () => {
+                    sheet.close();
+                    openEditMatch(ctx, match);
+                  },
+                })
+              : null,
             manager && match.status === 'scheduled'
               ? card(
                   h('div', { class: 'card-head' },
@@ -835,6 +854,262 @@ function openCreateMatch(ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// Edit match
+// ---------------------------------------------------------------------------
+
+/** 두 개·세 개 중 하나를 고르는 가로 세그먼트. 경기 생성 시트와 같은 모양. */
+function segmentField(label, options, value, onChange) {
+  let current = value;
+  const row = h('div', {
+    class: 'vote-seg',
+    style: { gridTemplateColumns: `repeat(${options.length}, 1fr)` },
+  });
+  function draw() {
+    row.replaceChildren(
+      ...options.map((option) =>
+        h(
+          'button',
+          {
+            class: `vote-btn${current === option.value ? ' is-active vote-muted' : ''}`,
+            type: 'button',
+            'aria-pressed': current === option.value ? 'true' : 'false',
+            style: { height: '44px', flexDirection: 'row', gap: '5px' },
+            onclick: () => {
+              if (current === option.value) return;
+              current = option.value;
+              draw();
+              onChange(option.value);
+            },
+          },
+          option.label,
+        ),
+      ),
+    );
+  }
+  draw();
+  return { el: h('div', { class: 'field' }, h('span', { class: 'field-label' }, label), row), get value() { return current; } };
+}
+
+/**
+ * 기존 경기 수정 시트. 팀 운영진만 열 수 있고, 저장은 `matches` PATCH 한 번이다
+ * (권한은 matches_update RLS가 판단). 어떤 열이 나가는지는 lib/matchEdit가 정한다.
+ * 저장되면 갱신된 경기 행을 돌려준다(닫기만 하면 null).
+ */
+function openEditMatch(ctx, match, { onSaved = null } = {}) {
+  return new Promise((resolve) => {
+    const previousAuto = autoTitle(match.kind, match.opponent_name);
+    let indoor = Boolean(match.is_indoor);
+    let deadlineTouched = false;
+    let saved = false;
+
+    const title = input({ label: '경기 이름', value: match.title, maxlength: 60, required: true });
+    const kickoff = input({
+      label: '경기 일시',
+      type: 'datetime-local',
+      value: fmt.toLocalInput(match.kickoff_at),
+      hint: '투표 마감은 경기 48시간 전 22시(한국시간)가 기본입니다.',
+    });
+    const opponent = input({
+      label: '상대 팀 이름',
+      value: match.opponent_name || '',
+      placeholder: '예: 화이트울브스',
+      maxlength: 40,
+    });
+    const pitchName = input({
+      label: '구장 이름',
+      value: match.pitch_name || '',
+      placeholder: '예: 강남 풋살파크 A구장',
+      maxlength: 60,
+    });
+    const deadline = input({
+      label: '투표 마감',
+      type: 'datetime-local',
+      value: fmt.toLocalInput(match.rsvp_deadline_at),
+    });
+    deadline.input.addEventListener('input', () => {
+      deadlineTouched = true;
+    });
+
+    const kindField = segmentField(
+      '종류',
+      [
+        { value: 'match', label: '경기' },
+        { value: 'practice', label: '팀 연습' },
+      ],
+      match.kind === 'practice' ? 'practice' : 'match',
+      (value) => {
+        opponent.el.style.display = value === 'practice' ? 'none' : '';
+        followAutoTitle();
+      },
+    );
+    const modeField = segmentField(
+      '경기 유형',
+      [
+        { value: 'futsal', label: '풋살' },
+        { value: 'soccer', label: '축구' },
+      ],
+      match.mode === 'soccer' ? 'soccer' : 'futsal',
+      () => undefined,
+    );
+    opponent.el.style.display = kindField.value === 'practice' ? 'none' : '';
+
+    // 제목이 자동 제목(예: 'vs 화이트울브스')이면 종류·상대를 바꿀 때 같이 바꾼다.
+    // 손으로 고친 제목은 절대 건드리지 않는다.
+    function followAutoTitle() {
+      if (title.input.value.trim() !== previousAuto) return;
+      title.input.value = autoTitle(kindField.value, opponent.input.value);
+    }
+    opponent.input.addEventListener('input', followAutoTitle);
+
+    const timingText = h('span', { class: 'plan-note-text' });
+    const quarterField = stepper({
+      label: '쿼터 시간',
+      value: match.quarter_minutes,
+      min: QUARTER_MINUTES.min,
+      max: QUARTER_MINUTES.max,
+      step: 1,
+      chips: [10, 11, 12, 13, 14, 15],
+      onChange: () => syncTiming(),
+    });
+    const countField = stepper({
+      label: '쿼터 수',
+      ariaLabel: '쿼터 수',
+      value: match.quarter_count,
+      min: QUARTER_COUNT.min,
+      max: QUARTER_COUNT.max,
+      step: 1,
+      suffix: '쿼터',
+      hint: '− / + 로 1쿼터씩 조정할 수 있습니다.',
+      onChange: () => syncTiming(),
+    });
+    function syncTiming() {
+      const timing = matchTiming({ quarters: countField.value, quarterMinutes: quarterField.value });
+      timingText.textContent = `총 ${timing.elapsedMinutes}분 진행 · 휴식 ${timing.breakMinutes}분×${timing.breakCount}회`;
+    }
+    syncTiming();
+
+    function syncDeadlineFromKickoff() {
+      if (deadlineTouched) return;
+      const iso = fmt.fromLocalInput(kickoff.input.value);
+      if (!iso) return;
+      deadline.input.value = fmt.toLocalInput(defaultDeadline(iso));
+    }
+    kickoff.input.addEventListener('input', syncDeadlineFromKickoff);
+
+    const deadlineAuto = h(
+      'button',
+      {
+        class: 'link-btn',
+        type: 'button',
+        onclick: () => {
+          deadlineTouched = false;
+          const iso = fmt.fromLocalInput(kickoff.input.value);
+          deadline.input.value = iso ? fmt.toLocalInput(defaultDeadline(iso)) : '';
+        },
+      },
+      '48시간 전 22시로',
+    );
+
+    let updatedRow = null;
+    const sheet = openSheet({
+      title: '경기 수정',
+      subtitle: `${match.title} · ${fmt.formatKickoff(match.kickoff_at)}`,
+      onClose: () => resolve(saved ? updatedRow : null),
+      render: (body) => {
+        body.appendChild(
+          h(
+            'div',
+            { class: 'stack' },
+            title.el,
+            h('div', { class: 'field-row' }, kindField.el, modeField.el),
+            kickoff.el,
+            opponent.el,
+            pitchName.el,
+            h(
+              'div',
+              { class: 'plan-block' },
+              quarterField.el,
+              countField.el,
+              h('div', { class: 'plan-note' }, timingText),
+            ),
+            h(
+              'div',
+              { class: 'field' },
+              h('span', { class: 'field-label' }, '투표 마감'),
+              deadline.input,
+              h(
+                'span',
+                { class: 'field-hint' },
+                '비우면 마감 없음. 경기 일시를 바꾸면 48시간 전 22시로 다시 계산됩니다.',
+              ),
+              h('div', { class: 'plan-note' }, deadlineAuto),
+            ),
+            h(
+              'div',
+              { class: 'share-row' },
+              h(
+                'div',
+                { class: 'share-row-main' },
+                h('span', { class: 'share-title' }, '실내 구장'),
+                h('span', { class: 'share-sub' }, 'GPS 없이 시간·심박만 기록합니다.'),
+              ),
+              switchToggle({ checked: indoor, label: '실내 구장', onChange: (next) => (indoor = next) }),
+            ),
+            button('수정 저장', {
+              block: true,
+              size: 'lg',
+              iconName: 'check',
+              onClick: async (event) => {
+                const target = event.currentTarget;
+                const { patch, errors, unchanged } = buildMatchPatch(
+                  match,
+                  {
+                    title: title.input.value,
+                    kind: kindField.value,
+                    mode: modeField.value,
+                    kickoff: fmt.fromLocalInput(kickoff.input.value),
+                    opponent: opponent.input.value,
+                    pitchName: pitchName.input.value,
+                    indoor,
+                    quarterCount: countField.value,
+                    quarterMinutes: quarterField.value,
+                    deadline: deadline.input.value ? fmt.fromLocalInput(deadline.input.value) : '',
+                  },
+                  { followKickoff: !deadlineTouched },
+                );
+                if (errors.length) {
+                  toast(errors[0], { kind: 'error', ms: 4200 });
+                  return;
+                }
+                if (unchanged) {
+                  toast('바뀐 내용이 없습니다.', { kind: 'info' });
+                  return;
+                }
+                target.disabled = true;
+                try {
+                  const rows = await matchesApi.update(match.id, patch);
+                  updatedRow = Array.isArray(rows) && rows.length ? rows[0] : { ...match, ...patch };
+                  saved = true;
+                  rsvpCache.clear();
+                  toast('경기를 수정했습니다.', { kind: 'ok' });
+                  sheet.close();
+                  onSaved?.(updatedRow);
+                  void ctx.render();
+                } catch (error) {
+                  toast(error.message, { kind: 'error', ms: 4200 });
+                } finally {
+                  target.disabled = false;
+                }
+              },
+            }),
+          ),
+        );
+      },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Pitches (4-point calibration)
 // ---------------------------------------------------------------------------
 
@@ -1004,12 +1279,10 @@ function dateBlock(value) {
   );
 }
 
-function matchRow(match, rows, onOpen, { past = false } = {}) {
+function matchRow(match, rows, onOpen, { past = false, onEdit = null } = {}) {
   const mine = myRow(rows);
   const d = dday(match.kickoff_at);
-  return h(
-    'button',
-    { class: 'member-row', type: 'button', onclick: onOpen },
+  const children = [
     dateBlock(match.kickoff_at),
     h(
       'div',
@@ -1031,6 +1304,42 @@ function matchRow(match, rows, onOpen, { past = false } = {}) {
       : mine
         ? badge(fmt.lateText(mine.status, mine.late_eta_min), fmt.RSVP_TONE[mine.status])
         : badge('미응답', 'muted'),
+  ];
+
+  if (!onEdit) {
+    return h('button', { class: 'member-row', type: 'button', onclick: onOpen }, ...children, icon('chevron', { size: 17, className: 'chev' }));
+  }
+
+  // 운영진에게는 행 안에 수정 버튼을 둔다. 버튼 안에 버튼을 넣을 수 없어서
+  // 행은 div + role=button으로 두고, 수정 버튼은 클릭을 멈춘다(stopPropagation).
+  return h(
+    'div',
+    {
+      class: 'member-row',
+      role: 'button',
+      tabindex: '0',
+      onclick: onOpen,
+      onkeydown: (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen();
+        }
+      },
+    },
+    ...children,
+    h(
+      'button',
+      {
+        class: 'icon-btn member-edit',
+        type: 'button',
+        'aria-label': `${match.title} 수정`,
+        onclick: (event) => {
+          event.stopPropagation();
+          onEdit();
+        },
+      },
+      icon('edit', { size: 16 }),
+    ),
     icon('chevron', { size: 17, className: 'chev' }),
   );
 }
@@ -1097,7 +1406,7 @@ async function build(root, ctx) {
     } catch {
       saved = [];
     }
-    content.appendChild(heroCard(next, team));
+    content.appendChild(heroCard(next, team, canManage() ? () => openEditMatch(ctx, next) : null));
     content.appendChild(
       h(
         'div',
@@ -1141,7 +1450,9 @@ async function build(root, ctx) {
           'div',
           { class: 'list' },
           ...upcoming.slice(1).map((match) =>
-            matchRow(match, rsvpCache.get(match.id) || [], () => openMatchSheet(match, ctx)),
+            matchRow(match, rsvpCache.get(match.id) || [], () => openMatchSheet(match, ctx), {
+              onEdit: canManage() ? () => openEditMatch(ctx, match) : null,
+            }),
           ),
         ),
       ),
@@ -1157,7 +1468,10 @@ async function build(root, ctx) {
           'div',
           { class: 'list' },
           ...past.slice(0, 12).map((match) =>
-            matchRow(match, [], () => openMatchSheet(match, ctx), { past: true }),
+            matchRow(match, [], () => openMatchSheet(match, ctx), {
+              past: true,
+              onEdit: canManage() ? () => openEditMatch(ctx, match) : null,
+            }),
           ),
         ),
       ),

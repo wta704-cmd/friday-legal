@@ -403,7 +403,7 @@ function openWatchUpload(ctx) {
 
   const sheet = openSheet({
     title: '워치 기록 올리기',
-    subtitle: '애플워치 운동 기록(GPX)을 거리·속도·스프린트·쿼터 지표로 바꿉니다.',
+    subtitle: '애플워치 Strava 기록(GPX)을 거리·속도·스프린트·쿼터 지표로 바꿉니다.',
     onClose: () => undefined,
     render: (body) => {
       body.appendChild(
@@ -421,26 +421,17 @@ function openWatchUpload(ctx) {
           ),
           preview,
           h(
-            'details',
+            'div',
             { class: 'guide' },
-            h('summary', null, '아이폰에서 GPX 내보내는 방법'),
+            h('span', { class: 'guide-title' }, '애플워치 기록 → GPX, Strava(무료) 하나로'),
             h(
               'ol',
               null,
-              h('li', null, '경기 전 애플워치에서 피트니스 앱 → [실외 걷기]·[실외 달리기]·[축구] 등 위치를 기록하는 운동을 시작합니다.'),
-              h('li', null, '경기가 끝나면 운동을 종료하고 아이폰 건강 앱에 기록이 동기화됐는지 확인합니다.'),
-              h(
-                'li',
-                null,
-                '무료 경로: 건강 앱 → 오른쪽 위 프로필 사진 → [모든 건강 데이터 내보내기] → 파일 앱에 zip 저장 → 파일 앱에서 압축 풀기 → apple_health_export/workout-routes/ 안의 날짜별 .gpx 파일을 고릅니다. (전체 내보내기라 시간이 걸리고 파일이 큽니다)',
-              ),
-              h(
-                'li',
-                null,
-                '경기 하나만 바로 꺼내려면 App Store의 GPX 내보내기 앱(예: HealthFit, RunGap)에서 그 운동을 [GPX 내보내기]로 저장합니다.',
-              ),
-              h('li', null, '저장한 .gpx 파일을 위 [GPX 파일 선택]으로 열어 주세요.'),
+              h('li', null, '아이폰·애플워치에 ', h('b', null, 'Strava'), '(무료)를 설치하고, 경기 때 워치에서 ', h('b', null, '달리기(실외)'), '로 기록을 시작한 뒤 경기가 끝나면 종료합니다.'),
+              h('li', null, '아이폰 Safari에서 ', h('b', null, 'strava.com'), '에 로그인 → 방금 기록을 열고 → 오른쪽 위 ', h('b', null, '⋯'), ' → ', h('b', null, 'GPX 내보내기'), '를 누릅니다.'),
+              h('li', null, '이 화면으로 돌아와 ', h('b', null, '+ 워치 기록 올리기'), ' → [GPX 파일 선택]으로 저장된 ', h('b', null, '.gpx'), ' 파일을 고릅니다.'),
             ),
+            h('p', { class: 'guide-note' }, 'GPS가 잡히는 야외 구장에서 기록해야 거리·속도·히트맵이 제대로 나옵니다. 실내 구장은 시간·심박만 기록됩니다.'),
           ),
           h(
             'div',

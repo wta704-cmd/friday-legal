@@ -735,6 +735,21 @@ export const matches = {
     });
   },
 
+  /**
+   * 기존 경기 수정. 팀 운영진(owner/manager)만 — `matches_update` RLS가 판단한다
+   * (0001_init.sql). 허용된 열만 넘기고 team_id·created_by·status는 보내지 않는다.
+   * 패치가 비어 있으면 아무 요청도 나가지 않는다.
+   */
+  update(matchId, patch) {
+    const columns = Object.keys(patch || {});
+    if (!columns.length) return Promise.resolve([]);
+    return request(`/matches${qs({ id: `eq.${matchId}`, select: MATCH_COLUMNS })}`, {
+      method: 'PATCH',
+      body: patch,
+      prefer: 'return=representation',
+    });
+  },
+
   rsvps(matchId) {
     return request(
       `/match_rsvp_directory${qs({
