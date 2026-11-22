@@ -1,6 +1,6 @@
-# PitchOS 웹 (모바일 PWA)
+# JOKBAL.L 웹 (모바일 PWA)
 
-아이폰 Safari에서 바로 열어 쓰는 PitchOS 모바일 웹입니다. 빌드 도구 없이 정적 파일 그대로
+아이폰 Safari에서 바로 열어 쓰는 JOKBAL.L(구 PitchOS) 모바일 웹입니다. 빌드 도구 없이 정적 파일 그대로
 동작하고(모던 ESM + HTML + CSS), 실서버 Supabase에 직접 붙습니다. 앱과 **같은 DB·같은
 RPC·같은 RLS**를 쓰므로 웹에서 만든 일정·투표가 폰 앱과 즉시 같아집니다.
 

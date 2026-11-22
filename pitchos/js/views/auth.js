@@ -184,8 +184,8 @@ export function renderAuth(root, { onSignedIn }) {
         h(
           'div',
           null,
-          h('h1', { class: 'auth-title' }, 'PitchOS'),
-          h('p', { class: 'auth-sub' }, '일정·투표·라인업·기록을 한 손에.'),
+          h('h1', { class: 'auth-title' }, 'JOKBAL.L'),
+          h('p', { class: 'auth-sub' }, '족발 · 일정·투표·라인업·기록을 한 손에.'),
         ),
       ),
       form,

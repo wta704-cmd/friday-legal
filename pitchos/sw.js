@@ -1,4 +1,4 @@
-// Offline shell for the PitchOS web app.
+// Offline shell for the JOKBAL.L web app.
 //
 // Only static files are cached: API calls (Supabase REST/Auth/Functions) always
 // go to the network, so a stale cache can never show another account's data or
@@ -9,7 +9,7 @@
 // visit instead of waiting for a background refresh that the browser's HTTP
 // cache (GitHub Pages sends max-age=600) may answer with the old copy.
 
-const CACHE = 'pitchos-shell-v4';
+const CACHE = 'jokbal-shell-v5';
 
 const SHELL = [
   './',

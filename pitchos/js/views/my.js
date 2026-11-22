@@ -552,7 +552,7 @@ async function build(root, ctx) {
       '앱 정보',
       null,
       list([
-        { iconName: 'ball', title: '버전', value: APP_VERSION },
+        { iconName: 'ball', title: '앱', value: `JOKBAL.L · ${APP_VERSION}` },
         { iconName: 'share', title: '홈 화면에 추가', sub: 'Safari 공유 → 홈 화면에 추가', onClick: openInstallGuide },
         { iconName: 'shield', title: '서버', sub: 'Supabase', value: SUPABASE_URL.replace('https://', '').split('.')[0] },
       ]),
@@ -614,7 +614,7 @@ async function build(root, ctx) {
     h(
       'p',
       { class: 'foot-note' },
-      'PitchOS 웹은 팀 운영(일정·투표·라인업)과 기록 열람을 담당합니다. GPS 기록은 폰·워치 앱에서 남깁니다.',
+      'JOKBAL.L 웹은 팀 운영(일정·투표·라인업)과 기록 열람을 담당합니다. GPS 기록은 폰·워치 앱에서 남깁니다.',
     ),
   );
 

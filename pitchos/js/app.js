@@ -143,7 +143,7 @@ async function boot() {
       'div',
       { class: 'boot' },
       h('div', { class: 'boot-logo' }, icon('ball', { size: 30 })),
-      h('p', null, 'PitchOS'),
+      h('p', null, 'JOKBAL.L'),
     ),
   );
 

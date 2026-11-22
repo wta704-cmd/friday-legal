@@ -2,7 +2,7 @@
   "name": "pitchos-web",
   "private": true,
   "type": "module",
-  "description": "PitchOS mobile web (PWA) client — static files, no build step",
+  "description": "JOKBAL.L mobile web (PWA) client — static files, no build step",
   "scripts": {
     "test": "node --test \"tests/*.test.js\""
   }
