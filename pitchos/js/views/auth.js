@@ -241,7 +241,7 @@ export function renderAuth(root, { onSignedIn, notice = '' }) {
         h(
           'p',
           { class: 'auth-hero-sub' },
-          '아마추어 풋살·축구 팀 운영 앱. 애플워치 기록도 그대로 올려 팀과 나눕니다.',
+          '아마추어 풋살·축구 팀 운영 앱. 워치 기록까지 한 곳에.',
         ),
       ),
       form,

@@ -1316,8 +1316,8 @@ button.list-row:active {
   width: 100%;
   aspect-ratio: 4 / 5;
   border-radius: var(--r-md);
-  background: linear-gradient(180deg, #1c9a5b 0%, #12864d 55%, #0c7743 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, #157a45 0%, #0f6839 55%, #0a5530 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 .pitch-svg {
@@ -3372,7 +3372,20 @@ body.sheet-open {
 html,
 body {
   max-width: 100%;
-  overflow-x: hidden;
+}
+
+/* 가로 넘침은 잘라내되, overflow-x: clip은 스크롤 컨테이너를 만들지 않는다.
+ * hidden을 주면 html·body가 스크롤러가 되어 앱바·탭바의 position: sticky가
+ * 통째로 죽는다(둘 다 화면과 함께 스크롤됨). clip을 못 쓰는 브라우저만 hidden. */
+body {
+  overflow-x: clip;
+}
+
+@supports not (overflow: clip) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
 }
 
 @media (max-width: 379px) {
