@@ -192,12 +192,7 @@ export function renderAuth(root, { onSignedIn }) {
       h(
         'div',
         { class: 'social-block' },
-        h(
-          'div',
-          { class: 'social-head' },
-          h('div', { class: 'divider' }, h('span', null, '또는 소셜 계정으로 계속')),
-          h('span', { class: 'soon-pill' }, '준비 중'),
-        ),
+        h('div', { class: 'social-head' }, h('div', { class: 'divider' }, h('span', null, '또는 소셜 계정으로 계속'))),
         h(
           'div',
           { class: 'social-row' },
@@ -214,7 +209,7 @@ export function renderAuth(root, { onSignedIn }) {
             ),
           ),
         ),
-        h('p', { class: 'social-note' }, '카카오·네이버·구글·Apple 로그인은 콘솔 키 등록 후 열립니다.'),
+        h('p', { class: 'social-note' }, '카카오·네이버·구글·Apple 로그인은 준비 중입니다. 콘솔 키 등록 후 열립니다.'),
       ),
       h('p', { class: 'auth-foot' }, `웹 버전 ${APP_VERSION} · Safari 공유 → [홈 화면에 추가]로 앱처럼 사용하세요.`),
     ),
