@@ -36,11 +36,26 @@ function rememberLogin(email, keep) {
 }
 
 const PROVIDERS = [
-  { id: 'kakao', label: '카카오', className: 'kakao', enabled: true },
+  // 카카오는 Supabase가 account_email 스코프를 고정으로 요청하는데, 이 앱은
+  // 비즈 앱 전환 전이라 이메일 동의항목 권한이 없다(카카오가 KOE205로 거부).
+  // 비즈 앱 전환을 마치면 enabled를 true로 바꾸면 바로 열린다.
+  {
+    id: 'kakao',
+    label: '카카오',
+    className: 'kakao',
+    enabled: false,
+    pending: '카카오 로그인은 카카오 비즈 앱 전환 후 열립니다. 그전에는 네이버·구글로 로그인해 주세요.',
+  },
   { id: 'naver', label: '네이버', className: 'naver', enabled: true },
   { id: 'google', label: '구글', className: 'google', enabled: true },
   // Apple은 Apple Developer 계정과 Supabase Apple provider 키가 등록되어야 열린다.
-  { id: 'apple', label: 'Apple', className: 'apple', enabled: false },
+  {
+    id: 'apple',
+    label: 'Apple',
+    className: 'apple',
+    enabled: false,
+    pending: 'Apple 로그인은 준비 중입니다. 다른 방법으로 로그인해 주세요.',
+  },
 ];
 
 export function openLegal(name, title) {
@@ -241,7 +256,7 @@ export function renderAuth(root, { onSignedIn, notice = '' }) {
                   : `${provider.label} 로그인 (준비 중)`,
                 onclick: async (event) => {
                   if (!provider.enabled) {
-                    toast('Apple 로그인은 준비 중입니다. 다른 방법으로 로그인해 주세요.', { ms: 3200 });
+                    toast(provider.pending || '준비 중입니다.', { ms: 3600 });
                     return;
                   }
                   const button = event.currentTarget;
@@ -261,7 +276,7 @@ export function renderAuth(root, { onSignedIn, notice = '' }) {
         h(
           'p',
           { class: 'social-note' },
-          '카카오·네이버·구글 계정으로 로그인할 수 있습니다. Apple 로그인은 준비 중입니다.',
+          '네이버·구글 계정으로 로그인할 수 있습니다. 카카오와 Apple 로그인은 준비 중입니다.',
         ),
       ),
       h('p', { class: 'auth-foot' }, `웹 버전 ${APP_VERSION} · Safari 공유 → [홈 화면에 추가]로 앱처럼 사용하세요.`),

@@ -968,10 +968,12 @@ export const account = {
     try {
       data = await request('/delete-account', { method: 'POST', base: 'functions', body: {} });
     } catch (error) {
-      // The deployed edge function answers OPTIONS with 405 and sends no CORS
-      // headers, so a browser blocks the call before it leaves the page. The
-      // SECURITY DEFINER RPC removes the same rows (profile → teams → matches →
-      // auth user) through PostgREST, which does allow this origin.
+      // The edge function now answers the browser preflight and sends CORS headers,
+      // so it is the normal path: it also removes the storage objects. This
+      // fallback stays for the cases it cannot cover — the function not deployed yet,
+      // a network/proxy block, or a 0/network error — where the SECURITY DEFINER RPC
+      // still removes the same rows (profile → teams → matches → auth user) through
+      // PostgREST, which allows this origin.
       if (!(error instanceof ApiError) || (error.code !== 'network' && error.status !== 0)) {
         throw error;
       }
