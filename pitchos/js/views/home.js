@@ -333,12 +333,18 @@ function lineupCard({ match, rows, saved, onSaved, showTitle = true }) {
     const bench = going.filter((row) => !placed.some((item) => item.user_id === row.user_id));
 
     const parts = [
-      h(
-        'div',
-        { class: 'lineup-top' },
-        showTitle ? h('h3', { class: 'card-title' }, '라인업') : h('span', { class: 'card-sub' }, '라인업'),
-        h('span', { class: 'card-sub' }, `${match.quarter_count}쿼터 · ${PER_SIDE[match.mode] || 5}:${PER_SIDE[match.mode] || 5}`),
-      ),
+      showTitle
+        ? h(
+            'div',
+            { class: 'lineup-top' },
+            h('h3', { class: 'card-title' }, '라인업'),
+            h(
+              'span',
+              { class: 'card-sub' },
+              `${match.quarter_count}쿼터 · ${PER_SIDE[match.mode] || 5}:${PER_SIDE[match.mode] || 5}`,
+            ),
+          )
+        : null,
       tabs,
       pitchBoard({
         rows: placed,
