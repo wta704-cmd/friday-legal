@@ -9,7 +9,7 @@
 // visit instead of waiting for a background refresh that the browser's HTTP
 // cache (GitHub Pages sends max-age=600) may answer with the old copy.
 
-const CACHE = 'jokbal-shell-v6';
+const CACHE = 'jokbal-shell-v7';
 
 const SHELL = [
   './',
@@ -41,6 +41,7 @@ const SHELL = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
+  './icons/icon-maskable-512.png',
 ];
 
 self.addEventListener('install', (event) => {

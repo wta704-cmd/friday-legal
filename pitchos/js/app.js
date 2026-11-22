@@ -142,7 +142,7 @@ async function boot() {
     h(
       'div',
       { class: 'boot' },
-      h('div', { class: 'boot-logo' }, icon('ball', { size: 30 })),
+      h('div', { class: 'boot-logo', role: 'img', 'aria-label': 'JOKBAL.L' }),
       h('p', null, 'JOKBAL.L'),
     ),
   );
@@ -185,7 +185,7 @@ async function boot() {
       h(
         'div',
         { class: 'boot' },
-        h('div', { class: 'boot-logo' }, icon('ball', { size: 30 })),
+        h('div', { class: 'boot-logo', role: 'img', 'aria-label': 'JOKBAL.L' }),
         h('p', null, '서버에 연결하지 못했습니다.'),
         h('p', { class: 'muted small' }, error?.message || ''),
         h(

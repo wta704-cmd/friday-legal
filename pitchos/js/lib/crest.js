@@ -2,14 +2,14 @@
 // Mirrors shared-spec/design-tokens.json -> teamCrest.
 
 export const AVATAR_TONES = [
-  { bg: '#E4EDFF', fg: '#1D4ED8' },
-  { bg: '#E4F7EC', fg: '#0B7A45' },
-  { bg: '#FFF1D9', fg: '#9A5B00' },
-  { bg: '#FDE8E8', fg: '#B42318' },
+  { bg: '#DDF7E7', fg: '#0B7A3C' },
+  { bg: '#E7F0FF', fg: '#1D4ED8' },
+  { bg: '#FDF2D6', fg: '#7A5200' },
+  { bg: '#FEE6E6', fg: '#C62C2C' },
   { bg: '#ECE9FD', fg: '#5B45C9' },
   { bg: '#DFF5F5', fg: '#0E6E6E' },
   { bg: '#FCE8F2', fg: '#A3206B' },
-  { bg: '#E9EEF7', fg: '#334155' },
+  { bg: '#EFF1F4', fg: '#333D4B' },
 ];
 
 /** Person avatar colours (soft background, readable ink) by the same stable hash. */
@@ -17,15 +17,17 @@ export function avatarTone(name) {
   return AVATAR_TONES[crestHash(name) % AVATAR_TONES.length];
 }
 
+// 팀 엠블럼: 흰 글자가 올라가므로 모두 충분히 어두운 값만 쓴다.
+// 피치 그린을 중심으로 두고, 팀끼리 구분되는 액센트를 섞는다.
 export const CREST_PALETTE = [
-  '#2563EB',
+  '#16A34A',
+  '#0E8A3D',
+  '#0B7032',
+  '#0F766E',
   '#1D4ED8',
-  '#0EA5E9',
-  '#0284C7',
-  '#4F46E5',
-  '#38BDF8',
-  '#1E40AF',
-  '#0891B2',
+  '#4338CA',
+  '#B45309',
+  '#BE123C',
 ];
 
 /** FNV-1a over the lowercased, trimmed name (not String.hashCode, so every client agrees). */

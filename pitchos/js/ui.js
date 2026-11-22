@@ -141,7 +141,7 @@ export function crest(name, { size = 44, logoUrl = null, tone = 'crest' } = {}) 
     style.color = t.fg;
   } else if (tone === 'light') {
     style.background = '#fff';
-    style.color = '#1D4ED8';
+    style.color = '#0E8A3D';
   } else if (tone === 'ghost') {
     style.background = 'rgba(255,255,255,0.16)';
     style.color = '#fff';
@@ -163,6 +163,42 @@ export function crest(name, { size = 44, logoUrl = null, tone = 'crest' } = {}) 
 
 export function badge(text, tone = 'muted') {
   return h('span', { class: `badge badge-${tone}` }, text);
+}
+
+/** 경기 상태 배지: 진행 중은 LIVE(빨간 점), 취소는 빨강, 나머지는 회색. */
+export function matchStatusBadge(status, label) {
+  const tone = status === 'live' ? 'live' : status === 'canceled' ? 'bad' : 'muted';
+  return badge(label, tone);
+}
+
+/**
+ * 브랜드 워드마크 (JOKBAL + 네온 그린 도트 + L).
+ * 색은 부모의 currentColor를 따르고, 도트만 브랜드 네온색으로 고정한다.
+ */
+export function wordmark({ className = '', label = 'JOKBAL.L', large = false } = {}) {
+  return h(
+    'span',
+    {
+      class: `wordmark${large ? ' wordmark-lg' : ''}${className ? ` ${className}` : ''}`,
+      role: 'img',
+      'aria-label': label,
+    },
+    h('span', { class: 'wm-text', 'aria-hidden': 'true' }, 'JOKBAL'),
+    h('span', { class: 'wm-dot', 'aria-hidden': 'true' }),
+    h('span', { class: 'wm-text', 'aria-hidden': 'true' }, 'L'),
+  );
+}
+
+/** 앱 아이콘(스퀄클 PNG). 홈 화면 아이콘과 같은 파일을 쓴다. */
+export function appIcon(size = 52, className = 'auth-icon') {
+  return h('img', {
+    class: className,
+    src: './icons/icon-192.png',
+    alt: '',
+    width: size,
+    height: size,
+    style: { width: `${size}px`, height: `${size}px` },
+  });
 }
 
 export function chip(text, { iconName = null, onClick = null, active = false, count = null } = {}) {

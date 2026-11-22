@@ -14,6 +14,8 @@ import {
   mount,
   readPrefs,
   writePrefs,
+  wordmark,
+  appIcon,
 } from '../ui.js';
 
 const LAST_EMAIL_KEY = 'lastEmail';
@@ -36,16 +38,10 @@ function rememberLogin(email, keep) {
 }
 
 const PROVIDERS = [
-  // 카카오는 Supabase가 account_email 스코프를 고정으로 요청하는데, 이 앱은
-  // 비즈 앱 전환 전이라 이메일 동의항목 권한이 없다(카카오가 KOE205로 거부).
-  // 비즈 앱 전환을 마치면 enabled를 true로 바꾸면 바로 열린다.
-  {
-    id: 'kakao',
-    label: '카카오',
-    className: 'kakao',
-    enabled: false,
-    pending: '카카오 로그인은 카카오 비즈 앱 전환 후 열립니다. 그전에는 네이버·구글로 로그인해 주세요.',
-  },
+  // 2026-11-22: 카카오 디벨로퍼스 비즈 앱 전환 + account_email 필수 동의 설정을
+  // 마쳐 KOE205(이메일 동의항목 권한 없음)가 해소됐다. Supabase provider의
+  // redirect URL은 https://zsmoaipnnsqiwvqninzw.supabase.co/auth/v1/callback.
+  { id: 'kakao', label: '카카오', className: 'kakao', enabled: true },
   { id: 'naver', label: '네이버', className: 'naver', enabled: true },
   { id: 'google', label: '구글', className: 'google', enabled: true },
   // Apple은 Apple Developer 계정과 Supabase Apple provider 키가 등록되어야 열린다.
@@ -228,13 +224,24 @@ export function renderAuth(root, { onSignedIn, notice = '' }) {
       { class: 'auth-wrap' },
       h(
         'div',
-        { class: 'auth-brand' },
-        h('div', { class: 'auth-mark' }, icon('ball', { size: 30 })),
+        { class: 'auth-hero' },
         h(
           'div',
-          null,
-          h('h1', { class: 'auth-title' }, 'JOKBAL.L'),
-          h('p', { class: 'auth-sub' }, '족발 · 일정·투표·라인업·기록을 한 손에.'),
+          { class: 'auth-hero-top' },
+          appIcon(50),
+          h('h1', { class: 'auth-title' }, wordmark({ large: true })),
+        ),
+        h(
+          'p',
+          { class: 'auth-hero-line' },
+          '일정·투표·라인업부터 ',
+          h('b', null, '경기 기록'),
+          '까지, 한 손에.',
+        ),
+        h(
+          'p',
+          { class: 'auth-hero-sub' },
+          '아마추어 풋살·축구 팀 운영 앱. 애플워치 기록도 그대로 올려 팀과 나눕니다.',
         ),
       ),
       form,
@@ -276,7 +283,7 @@ export function renderAuth(root, { onSignedIn, notice = '' }) {
         h(
           'p',
           { class: 'social-note' },
-          '네이버·구글 계정으로 로그인할 수 있습니다. 카카오와 Apple 로그인은 준비 중입니다.',
+          '카카오·네이버·구글 계정으로 로그인할 수 있습니다. Apple 로그인은 준비 중입니다.',
         ),
       ),
       h('p', { class: 'auth-foot' }, `웹 버전 ${APP_VERSION} · Safari 공유 → [홈 화면에 추가]로 앱처럼 사용하세요.`),

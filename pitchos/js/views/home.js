@@ -20,6 +20,7 @@ import {
 import {
   h,
   badge,
+  matchStatusBadge,
   button,
   icon,
   crest,
@@ -225,8 +226,10 @@ function attendanceBlock(rows, onOpen) {
             avatarStack(attending(rows)),
             h(
               'span',
-              { class: 'attend-legend' },
-              h('span', null, '참석·지각 ', h('b', null, String(c.going + c.late)), '명'),
+              { class: 'attend-figure' },
+              h('b', null, String(c.going + c.late)),
+              h('span', { class: 'attend-figure-label' }, '명 참석'),
+              h('span', { class: 'attend-figure-total' }, `/ ${total}명`),
             ),
           ),
           icon('chevron', { size: 14, className: 'chev' }),
@@ -271,7 +274,9 @@ function heroCard(match, team) {
     h(
       'div',
       { class: 'hero-top' },
-      h('span', { class: `dday${d.today ? ' is-today' : ''}` }, d.text),
+      match.status === 'live'
+        ? h('span', { class: 'badge badge-live' }, 'LIVE')
+        : h('span', { class: `dday${d.today ? ' is-today' : ''}` }, d.text),
       h('span', { class: 'hero-kind' }, practice ? '팀 연습' : '경기'),
       h(
         'span',
@@ -280,19 +285,22 @@ function heroCard(match, team) {
         dl.closed ? '투표 마감' : dl.text,
       ),
     ),
+    // 스코어 자리에 킥오프 시각을 크게 둔다. 팀 이름은 좌우로, 시각이 경기의 중심.
     h(
       'div',
-      { class: 'hero-matchup' },
+      { class: `hero-matchup${practice ? ' is-practice' : ''}` },
       heroSide(team.name, team.logo_url, practice ? '자체 연습' : '우리 팀'),
-      practice ? null : h('span', { class: 'hero-vs' }, 'VS'),
-      practice
-        ? null
-        : heroSide(opponentName(match), null, '상대 팀', true),
+      h(
+        'div',
+        { class: 'hero-clock' },
+        h('span', { class: 'hero-clock-time' }, fmt.formatClock(match.kickoff_at)),
+        h('span', { class: 'hero-clock-date' }, fmt.formatMonthDay(match.kickoff_at)),
+      ),
+      practice ? null : heroSide(opponentName(match), null, '상대 팀', true),
     ),
     h(
       'div',
       { class: 'hero-meta' },
-      metaItem('calendar', fmt.formatKickoff(match.kickoff_at)),
       metaItem('pin', match.pitch_name || '구장 미정'),
       metaItem('flag', `${match.quarter_count}쿼터 × ${match.quarter_minutes}분`),
     ),
@@ -505,7 +513,7 @@ async function openMatchSheet(match, ctx) {
               ? card(
                   h('div', { class: 'card-head' },
                     h('h3', { class: 'card-title' }, '투표 마감'),
-                    badge(fmt.MATCH_STATUS_LABEL[match.status] || match.status, 'muted'),
+                    matchStatusBadge(match.status, fmt.MATCH_STATUS_LABEL[match.status] || match.status),
                   ),
                   button(closed ? '마감하고 미응답자 불참 처리' : '투표 마감', {
                     kind: closed ? 'primary' : 'ghost',
@@ -1018,7 +1026,7 @@ function matchRow(match, rows, onOpen, { past = false } = {}) {
       ),
     ),
     past
-      ? badge(fmt.MATCH_STATUS_LABEL[match.status] || match.status, 'muted')
+      ? matchStatusBadge(match.status, fmt.MATCH_STATUS_LABEL[match.status] || match.status)
       : mine
         ? badge(fmt.lateText(mine.status, mine.late_eta_min), fmt.RSVP_TONE[mine.status])
         : badge('미응답', 'muted'),
@@ -1042,6 +1050,7 @@ async function build(root, ctx) {
     { class: 'screen' },
     appHeader({
       title: '경기·투표',
+      brand: true,
       subtitle: team ? `${team.name} · ${fmt.MODE_LABEL[team.mode] || team.mode}` : '팀을 먼저 만들어 주세요',
       right: [
         canManage() ? iconButton('plus', '경기 만들기', () => openCreateMatch(ctx)) : null,

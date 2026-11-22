@@ -1,19 +1,26 @@
 // 화면 공통 조각: 상단 앱바, 팀 스위처, 로딩/에러 래퍼.
 
-import { h, crest, icon, openSheet, emptyState } from '../ui.js';
+import { h, crest, icon, openSheet, emptyState, wordmark } from '../ui.js';
 import { state, currentTeam, selectTeam } from '../store.js';
 import { MODE_LABEL, PLAN_LABEL } from '../lib/format.js';
 import { openCreateTeam, openJoinTeam } from './teamForms.js';
 
-export function appHeader({ title, subtitle = null, right = [] }) {
+/**
+ * 화면 상단 앱바.
+ * brand: true를 주면 제목 자리에 JOKBAL.L 워드마크가 들어간다(홈처럼 브랜드가
+ * 곧 화면 이름인 곳). 나머지 화면은 읽기 쉬운 제목을 그대로 쓴다.
+ */
+export function appHeader({ title, subtitle = null, right = [], brand = false }) {
   return h(
     'header',
     { class: 'appbar' },
     h(
       'div',
       { class: 'appbar-main' },
+      brand
+        ? h('div', { class: 'appbar-brand' }, wordmark({ className: 'appbar-wordmark' }))
+        : h('h1', { class: 'appbar-title' }, title),
       subtitle ? h('p', { class: 'appbar-sub' }, subtitle) : null,
-      h('h1', { class: 'appbar-title' }, title),
     ),
     h('div', { class: 'appbar-actions' }, ...right.filter(Boolean)),
   );

@@ -1,46 +1,83 @@
-/* JOKBAL.L mobile web — 2026 리디자인.
+/* JOKBAL.L mobile web — 2026 브랜드 리디자인 (v3).
  *
- * 한국형 상용 스포츠 앱(플랩풋볼·사커비·토스) 톤: 넉넉한 여백, 16~24px 카드
- * 라운드, 은은한 보더/그림자, 블러 앱바·탭바, 바텀시트. 아이폰 Safari(390~430px)
- * 기준으로 쓰고, 그보다 넓은 화면에서는 430px 프레임을 가운데에 둔다.
+ * 핏치(Pitch) 디자인 시스템(pitchlabs.kr/design)의 원칙을 그대로 가져왔다.
+ *  1. 그린은 누르는 곳에만 — 넓은 면 배경으로 칠하지 않는다.
+ *  2. 면은 채도 없는 그레이 단계로만 나눈다.
+ *  3. 그림자는 단일 레이어·저채도 (그린 그림자는 주 CTA 강조에만).
+ *  4. 본문 500, 큰 히어로 숫자만 무겁게 + tabular-nums.
+ *  5. 간격은 8px 그리드, 화면 좌우 16~20px.
+ *  6. 같은 역할의 컨트롤은 하나의 모양만 쓴다.
+ *
+ * 아이폰 Safari(320~430px) 기준으로 쓰고, 더 넓은 화면에서는 430px 프레임을
+ * 가운데에 둔다. 세로 고정·확대 방지는 index.html의 뷰포트가 맡는다.
  */
 
 /* ------------------------------------------------------------------ tokens */
 
+/* 원시 스케일(pitch green · 중성 gray) 위에 의미 토큰을 얹는 2층 구조.
+ * 화면 코드는 의미 토큰만 쓰고, 원시값은 이 블록 밖으로 나오지 않는다. */
+
 :root {
-  --brand: #2563eb;
-  --brand-strong: #1d4ed8;
-  --brand-deep: #17347f;
-  --brand-soft: #edf2ff;
-  --brand-line: #d8e3ff;
+  /* pitch green — 500이 주 CTA, 600/700은 작은 글자·아이콘용 잉크 */
+  --brand: #22c55e;
+  --brand-strong: #16a34a;
+  --brand-deep: #0b7032;
+  --brand-ink: #0e8a3d;
+  --brand-soft: #e8f8ef;
+  --brand-line: #cdefd9;
+  --neon: #76fd0f;
 
-  --green: #10a55c;
-  --green-soft: #e6f7ee;
-  --amber: #d97706;
-  --amber-soft: #fff4e3;
-  --red: #e5484d;
-  --red-soft: #fdecec;
+  /* 시맨틱 상태 */
+  --green: #16a34a;
+  --green-soft: #e8f8ef;
+  --amber: #f5a623;
+  --amber-soft: #fff6e6;
+  --red: #ef4444;
+  --red-soft: #feecec;
 
-  --ink: #0f172a;
-  --ink-2: #334155;
-  --ink-3: #64748b;
-  --ink-4: #94a3b8;
+  /* 포지션: GK 앰버 · DF 블루 · MF 그린 · FW 레드 */
+  --pos-gk: #f6c453;
+  --pos-gk-soft: #fdf2d6;
+  --pos-gk-ink: #7a5200;
+  --pos-df: #3b82f6;
+  --pos-df-soft: #e7f0ff;
+  --pos-df-ink: #1d4ed8;
+  --pos-mf: #22c55e;
+  --pos-mf-soft: #ddf7e7;
+  --pos-mf-ink: #0b7a3c;
+  --pos-fw: #ef4444;
+  --pos-fw-soft: #fee6e6;
+  --pos-fw-ink: #c62c2c;
 
-  --bg: #f4f6fb;
+  /* 잉크: 딥 차콜 + 중성 그레이 */
+  --ink: #171719;
+  --ink-2: #333d4b;
+  --ink-3: #6b7684;
+  --ink-4: #98a1ad;
+
+  /* 면: 오프화이트 바탕 위 흰 카드 */
+  --bg: #f5f6f8;
   --surface: #ffffff;
-  --surface-2: #f7f9fd;
-  --surface-3: #eef2f9;
-  --line: #e7ebf3;
-  --line-strong: #d8dfea;
+  --surface-2: #f8f9fb;
+  --surface-3: #eef0f3;
+  --line: #ebeef1;
+  --line-strong: #dde1e6;
 
-  --r-xl: 26px;
-  --r-lg: 20px;
-  --r-md: 16px;
-  --r-sm: 12px;
+  /* 잔디 위 다크 면 (히어로·팀 배너) */
+  --turf-deep: #101518;
+  --turf: #1b2521;
 
-  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-2: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 34px -22px rgba(15, 23, 42, 0.32);
-  --shadow-hero: 0 20px 40px -24px rgba(29, 78, 216, 0.85);
+  --r-xl: 22px;
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 9px;
+
+  /* 그림자: 단일 레이어·저채도 */
+  --shadow-1: 0 1px 3px rgba(23, 23, 25, 0.06);
+  --shadow-2: 0 4px 12px rgba(23, 23, 25, 0.07);
+  --shadow-lg: 0 10px 28px rgba(23, 23, 25, 0.1);
+  --shadow-hero: 0 8px 24px rgba(11, 112, 50, 0.16);
+  --shadow-green: 0 4px 12px rgba(22, 163, 74, 0.28);
 
   --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
     'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', Roboto, sans-serif;
@@ -64,7 +101,7 @@ html {
 body {
   margin: 0;
   min-height: 100%;
-  background: #eaeef6;
+  background: #eceef1;
   color: var(--ink);
   font-family: var(--font);
   font-size: 15px;
@@ -108,7 +145,7 @@ a,
 }
 
 a {
-  color: var(--brand);
+  color: var(--brand-ink);
   text-decoration: none;
 }
 
@@ -131,6 +168,7 @@ p {
 
 ::selection {
   background: var(--brand-line);
+  color: var(--ink);
 }
 
 /* ------------------------------------------------------------------ shell */
@@ -234,8 +272,8 @@ p {
   align-items: center;
   gap: 10px;
   padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
-  background: rgba(250, 251, 254, 0.78);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.055);
+  background: rgba(255, 255, 255, 0.82);
+  border-bottom: 1px solid rgba(23, 23, 25, 0.06);
   backdrop-filter: blur(22px) saturate(180%);
   -webkit-backdrop-filter: blur(22px) saturate(180%);
 }
@@ -252,6 +290,17 @@ p {
   font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0;
+}
+
+/* 브랜드 앱바: 워드마크가 곧 타이틀인 화면(홈) */
+.appbar-brand {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+.appbar .wordmark {
+  font-size: 19px;
 }
 
 .appbar-title {
@@ -306,8 +355,8 @@ p {
   align-items: stretch;
   margin-top: auto;
   padding: 6px 8px calc(env(safe-area-inset-bottom) + 6px);
-  background: rgba(252, 253, 255, 0.86);
-  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.9);
+  border-top: 1px solid rgba(23, 23, 25, 0.06);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
@@ -339,7 +388,7 @@ p {
 }
 
 .tab-item.is-active {
-  color: var(--brand);
+  color: var(--brand-ink);
 }
 
 .tab-item.is-active svg {
@@ -371,7 +420,7 @@ p {
 
 .eyebrow {
   margin-bottom: 3px;
-  color: var(--brand);
+  color: var(--brand-ink);
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -486,8 +535,8 @@ p {
 
 .btn-primary {
   color: #fff;
-  background: linear-gradient(180deg, #3575f5 0%, var(--brand) 45%, #1e55d6 100%);
-  box-shadow: 0 10px 22px -14px rgba(37, 99, 235, 0.9);
+  background: linear-gradient(180deg, #2ac765 0%, var(--brand) 55%, #1cb254 100%);
+  box-shadow: var(--shadow-green);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -501,14 +550,14 @@ p {
 }
 
 .btn-soft {
-  color: var(--brand);
+  color: var(--brand-ink);
   background: var(--brand-soft);
 }
 
 .btn-danger {
   color: #fff;
   background: var(--red);
-  box-shadow: 0 10px 22px -16px rgba(229, 72, 77, 0.9);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.24);
 }
 
 .btn-block {
@@ -537,7 +586,7 @@ p {
 
 .link-btn {
   display: inline;
-  color: var(--brand);
+  color: var(--brand-ink);
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
@@ -552,28 +601,30 @@ p {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   flex: 0 0 auto;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 11.5px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  height: 23px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: -0.005em;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .badge-ok {
-  color: #0c7a45;
+  color: #0b7a3c;
   background: var(--green-soft);
 }
 
 .badge-warn {
-  color: #b45309;
+  color: #8a5300;
   background: var(--amber-soft);
 }
 
 .badge-bad {
-  color: #c0262b;
+  color: #c62c2c;
   background: var(--red-soft);
 }
 
@@ -583,8 +634,46 @@ p {
 }
 
 .badge-primary {
-  color: var(--brand-strong);
+  color: var(--brand-ink);
   background: var(--brand-soft);
+}
+
+/* 경기 상태: LIVE는 점이 빠뀌고(진행 중), 마감은 차콜 면으로 닫힘을 보인다. */
+.badge-live {
+  color: #fff;
+  background: var(--red);
+  padding-left: 7px;
+}
+
+.badge-live::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.72);
+  }
+}
+
+.badge-closed {
+  color: #fff;
+  background: var(--ink-2);
+}
+
+.badge-dday {
+  color: var(--ink);
+  background: var(--neon);
 }
 
 .badge-solid {
@@ -629,8 +718,9 @@ p {
 }
 
 .chip-soft.is-active {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+  color: var(--brand-deep);
 }
 
 .chip-count {
@@ -673,16 +763,21 @@ p {
 
 /* ------------------------------------------------------------------ crest / avatar */
 
+/* 팀 로고·아바타는 모서리만 둥근 사각형이 아니라 곡률이 끊김 없이 이어지는
+ * 스쿼클을 쓴다. index.html의 SVG 클립(곱률 이어짐)을 참조하고, 이를 못 쓰는
+ * 브라우저에서는 넉넉한 border-radius로 근사한다. */
 .crest {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  border-radius: 50%;
+  border-radius: 32%;
+  clip-path: url(#squircle-clip);
   color: #fff;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   object-fit: cover;
   user-select: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .avatar-stack {
@@ -821,22 +916,23 @@ button.list-row:active {
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 16px 18px 18px;
+  padding: 15px 18px 16px;
   border-radius: var(--r-xl);
   color: #fff;
-  background: linear-gradient(138deg, #142a63 0%, #1d4ed8 55%, #3b82f6 100%);
-  box-shadow: var(--shadow-hero);
+  background:
+    radial-gradient(105% 120% at 92% -30%, rgba(34, 197, 94, 0.34) 0%, rgba(34, 197, 94, 0) 62%),
+    linear-gradient(160deg, #12181b 0%, #17231d 58%, #0e1512 100%);
+  box-shadow: var(--shadow-lg);
   isolation: isolate;
 }
 
+/* 잔디 결: 경기장 위에 앉은 카드라는 질감만 남기고, 그린은 위쪽 모서리 한 줄에만. */
 .hero::before {
   content: '';
   position: absolute;
-  inset: -40% -30% auto auto;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), transparent 62%);
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand) 0%, var(--neon) 38%, rgba(118, 253, 15, 0) 78%);
   z-index: -1;
 }
 
@@ -846,7 +942,7 @@ button.list-row:active {
   inset: 0;
   background: repeating-linear-gradient(
     115deg,
-    rgba(255, 255, 255, 0.035) 0 22px,
+    rgba(255, 255, 255, 0.028) 0 22px,
     transparent 22px 44px
   );
   z-index: -1;
@@ -867,18 +963,26 @@ button.list-row:active {
 .dday {
   display: inline-flex;
   align-items: center;
-  padding: 4px 9px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.2);
-  font-size: 12px;
-  font-weight: 750;
-  letter-spacing: 0.01em;
-  backdrop-filter: blur(6px);
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: var(--neon);
+  color: #10240a;
+  font-size: 12.5px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .dday.is-today {
   background: #fff;
-  color: var(--brand-strong);
+  color: var(--ink);
+}
+
+.dday.is-closed {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 750;
 }
 
 .hero-deadline {
@@ -892,11 +996,50 @@ button.list-row:active {
 }
 
 .hero-matchup {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   margin: 16px 0 14px;
+}
+
+.hero-matchup.is-practice {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* 스코어 자리: 큰 킥오프 시각 + 날짜. 스포츠 앱의 "3 : 1" 자리를 시간이 대신한다. */
+.hero-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 74px;
+  padding: 0 4px;
+}
+
+.hero-clock-time {
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.hero-clock-date {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hero-clock-vs {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
 }
 
 .hero-side {
@@ -931,11 +1074,11 @@ button.list-row:active {
 
 .hero-vs {
   flex: 0 0 auto;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
   font-weight: 800;
   font-style: italic;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 .hero .crest {
@@ -1077,7 +1220,7 @@ button.list-row:active {
 }
 
 .attend-seg.muted {
-  background: #cbd5e1;
+  background: var(--line-strong);
 }
 
 .attend-seg.bad {
@@ -1123,7 +1266,7 @@ button.list-row:active {
 }
 
 .legend-dot.muted {
-  background: #cbd5e1;
+  background: var(--line-strong);
 }
 
 .legend-dot.bad {
@@ -1209,8 +1352,8 @@ button.list-row:active {
 }
 
 .pitch-dot.is-gk {
-  background: #fde68a;
-  color: #7c2d12;
+  background: var(--pos-gk);
+  color: var(--pos-gk-ink);
 }
 
 .pitch-name {
@@ -1306,8 +1449,18 @@ button.list-row:active {
   padding: 20px 18px;
   border-radius: var(--r-xl);
   color: #fff;
-  background: linear-gradient(140deg, #12275c 0%, #1d4ed8 60%, #2f7cf6 100%);
-  box-shadow: 0 18px 36px -24px rgba(29, 78, 216, 0.9);
+  background:
+    radial-gradient(100% 120% at 88% -40%, rgba(34, 197, 94, 0.3) 0%, rgba(34, 197, 94, 0) 60%),
+    linear-gradient(158deg, #12181b 0%, #17231d 58%, #0e1512 100%);
+  box-shadow: var(--shadow-lg);
+}
+
+.team-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand) 0%, var(--neon) 38%, rgba(118, 253, 15, 0) 78%);
 }
 
 .team-banner::after {
@@ -1392,7 +1545,7 @@ button.list-row:active {
 }
 
 .invite-label {
-  color: var(--brand-strong);
+  color: var(--brand-deep);
   font-size: 11px;
   font-weight: 650;
 }
@@ -1469,37 +1622,69 @@ button.member-row:active {
 }
 
 .pos-badge {
-  display: inline-grid;
-  place-items: center;
-  min-width: 30px;
-  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 34px;
+  height: 23px;
   padding: 0 7px;
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--surface-3);
-  color: var(--ink-2);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  color: var(--ink-3);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pos-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
 }
 
 .pos-badge.GK {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--pos-gk-soft);
+  color: var(--pos-gk-ink);
+}
+
+.pos-badge.GK::before {
+  background: var(--pos-gk);
+  opacity: 1;
 }
 
 .pos-badge.DF {
-  background: #e0ecff;
-  color: #1e40af;
+  background: var(--pos-df-soft);
+  color: var(--pos-df-ink);
+}
+
+.pos-badge.DF::before {
+  background: var(--pos-df);
+  opacity: 1;
 }
 
 .pos-badge.MF {
-  background: #e6f7ee;
-  color: #0c7a45;
+  background: var(--pos-mf-soft);
+  color: var(--pos-mf-ink);
+}
+
+.pos-badge.MF::before {
+  background: var(--pos-mf);
+  opacity: 1;
 }
 
 .pos-badge.FW {
-  background: #fde8e8;
-  color: #b91c1c;
+  background: var(--pos-fw-soft);
+  color: var(--pos-fw-ink);
+}
+
+.pos-badge.FW::before {
+  background: var(--pos-fw);
+  opacity: 1;
 }
 
 .me-tag {
@@ -1508,7 +1693,7 @@ button.member-row:active {
   padding: 1px 6px;
   border-radius: 6px;
   background: var(--brand-soft);
-  color: var(--brand-strong);
+  color: var(--brand-deep);
   font-size: 10px;
   font-weight: 700;
 }
@@ -1538,8 +1723,8 @@ button.member-row:active {
   position: absolute;
   top: 12px;
   right: 12px;
-  color: var(--brand);
-  opacity: 0.55;
+  color: var(--brand-ink);
+  opacity: 0.5;
 }
 
 .kpi-label {
@@ -1552,10 +1737,12 @@ button.member-row:active {
   display: flex;
   align-items: baseline;
   gap: 3px;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 1.05;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 .kpi-value small {
@@ -1609,7 +1796,7 @@ button.member-row:active {
   max-width: 34px;
   min-height: 4px;
   border-radius: 7px 7px 3px 3px;
-  background: linear-gradient(180deg, #5b8dfb 0%, var(--brand) 100%);
+  background: linear-gradient(180deg, #4ade80 0%, var(--brand-strong) 100%);
   transition: height 0.4s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -1617,7 +1804,7 @@ button.member-row:active {
   background: repeating-linear-gradient(
     135deg,
     var(--surface-3) 0 4px,
-    #e2e8f2 4px 8px
+    #e4e7eb 4px 8px
   );
 }
 
@@ -1885,7 +2072,7 @@ select.input {
   width: 22px;
   height: 22px;
   margin: 1px 0 0;
-  border: 1.5px solid #cbd5e1;
+  border: 1.5px solid var(--line-strong);
   border-radius: 7px;
   background: var(--surface);
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -1959,7 +2146,7 @@ select.input {
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--red-soft);
-  color: #b42318;
+  color: #c62c2c;
   font-size: 12.5px;
   line-height: 1.45;
 }
@@ -1988,12 +2175,12 @@ select.input {
   width: 51px;
   height: 31px;
   border-radius: 999px;
-  background: #dfe4ee;
+  background: var(--line-strong);
   transition: background 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .switch.is-on {
-  background: #34c759;
+  background: var(--brand);
 }
 
 .switch-knob {
@@ -2035,7 +2222,7 @@ select.input {
   margin-bottom: 2px;
   border-radius: 20px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-ink);
 }
 
 .empty-icon.danger {
@@ -2095,18 +2282,14 @@ select.input {
   justify-content: center;
   gap: 12px;
   min-height: 100dvh;
-  background: radial-gradient(120% 70% at 50% 0%, #e7eeff 0%, var(--bg) 55%);
+  background: radial-gradient(120% 70% at 50% 0%, #e6f7ec 0%, var(--bg) 55%);
 }
 
 .boot-logo {
-  display: grid;
-  place-items: center;
   width: 62px;
   height: 62px;
-  border-radius: 20px;
-  background: linear-gradient(140deg, #1d4ed8, #3b82f6);
-  color: #fff;
-  box-shadow: 0 18px 34px -18px rgba(29, 78, 216, 0.9);
+  border-radius: 22px;
+  background: url('./icons/icon-192.png') center / contain no-repeat;
   animation: boot-pulse 1.6s ease-in-out infinite;
 }
 
@@ -2131,7 +2314,7 @@ select.input {
 
 .app.auth-screen {
   background:
-    radial-gradient(120% 60% at 50% -8%, #dfe9ff 0%, rgba(223, 233, 255, 0) 62%),
+    radial-gradient(115% 55% at 50% -6%, #dcf7e6 0%, rgba(220, 247, 230, 0) 62%),
     var(--bg);
 }
 
@@ -2141,7 +2324,7 @@ select.input {
   justify-content: center;
   gap: 22px;
   min-height: 100dvh;
-  padding: calc(env(safe-area-inset-top) + 52px) 22px calc(env(safe-area-inset-bottom) + 26px);
+  padding: calc(env(safe-area-inset-top) + 52px) 20px calc(env(safe-area-inset-bottom) + 26px);
 }
 
 .auth-brand {
@@ -2156,9 +2339,10 @@ select.input {
   width: 60px;
   height: 60px;
   border-radius: 19px;
-  background: linear-gradient(140deg, #17347f 0%, #1d4ed8 55%, #3b82f6 100%);
-  color: #fff;
-  box-shadow: 0 20px 36px -20px rgba(29, 78, 216, 0.95);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--brand-ink);
+  box-shadow: var(--shadow-1);
 }
 
 .auth-title {
@@ -2344,7 +2528,7 @@ select.input {
   height: 5px;
   margin: 9px auto 2px;
   border-radius: 999px;
-  background: #dbe1ec;
+  background: var(--line-strong);
 }
 
 .sheet-head {
@@ -2885,11 +3069,11 @@ select.input {
   width: 64px;
   height: 64px;
   border-radius: 24px;
-  background: linear-gradient(140deg, #1d4ed8, #3b82f6);
+  background: linear-gradient(150deg, #18211d 0%, #0e1512 100%);
   color: #fff;
   font-size: 26px;
   font-weight: 800;
-  box-shadow: 0 14px 26px -16px rgba(29, 78, 216, 0.9);
+  box-shadow: var(--shadow-2);
 }
 
 .profile-main {
@@ -3145,7 +3329,7 @@ body.sheet-open {
 
 .plan-note.is-warn {
   background: var(--red-soft);
-  color: #b42318;
+  color: #c62c2c;
 }
 
 .plan-note-text {
@@ -3289,4 +3473,157 @@ body {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------------ brand v3 (워드마크 · 온보딩 히어로) */
+
+/* JOKBAL.L 워드마크 — v3-1 타이포 시안(기울인 헤비 산세리프 + 네온 그린 도트).
+ * 글자는 currentColor를 따르므로 밝은 면·어두운 면 어디에나 놓을 수 있고,
+ * 도트만 브랜드 네온색으로 고정한다. */
+.wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 900;
+  font-style: normal;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: skewX(-9deg);
+  transform-origin: left center;
+}
+
+.wm-dot {
+  width: 0.19em;
+  height: 0.19em;
+  margin: 0 0.1em 0 0.05em;
+  border-radius: 50%;
+  background: var(--neon);
+}
+
+.wordmark-lg .wm-dot {
+  box-shadow: 0 0 10px rgba(118, 253, 15, 0.55);
+}
+
+/* 로그인·온보딩 히어로 헤더: 잔디 위에 놓인 브랜드 블록 */
+.auth-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 18px 18px;
+  border-radius: var(--r-xl);
+  color: #fff;
+  background:
+    radial-gradient(105% 130% at 94% -34%, rgba(34, 197, 94, 0.36) 0%, rgba(34, 197, 94, 0) 62%),
+    linear-gradient(160deg, #12181b 0%, #17231d 58%, #0e1512 100%);
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.028) 0 22px,
+    transparent 22px 44px
+  );
+}
+
+.auth-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand) 0%, var(--neon) 38%, rgba(118, 253, 15, 0) 78%);
+}
+
+.auth-hero > * {
+  position: relative;
+}
+
+.auth-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-hero .auth-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 17px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.auth-hero .auth-title {
+  display: flex;
+  align-items: center;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.auth-hero .auth-title .wordmark {
+  color: #fff;
+}
+
+.auth-hero-line {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.4;
+}
+
+.auth-hero-line b {
+  color: var(--neon);
+  font-weight: 800;
+}
+
+.auth-hero-sub {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.auth-icon {
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* 참석 인원 — 로그인 없이도 보이는 히어로 숫자 */
+.attend-figure {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.attend-figure b {
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.attend-figure-label {
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.attend-figure-total {
+  color: var(--ink-4);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* 섹션 제목 앞 짧은 그린 티끌: 화면마다 반복되는 리듬 */
+.section-title,
+.page-title {
+  text-wrap: balance;
+}
+
+.hero-meta-item {
+  font-variant-numeric: tabular-nums;
 }
