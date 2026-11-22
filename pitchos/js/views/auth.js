@@ -12,6 +12,7 @@ import {
   toast,
   icon,
   mount,
+  setChildren,
 } from '../ui.js';
 
 const PROVIDERS = [
@@ -127,7 +128,9 @@ export function renderAuth(root, { onSignedIn }) {
   function syncAgreeAll() {
     const all = termsCheck.checked && privacyCheck.checked && locationCheck.checked;
     agreeAll.checked = all;
-    submitButton.disabled = !all;
+    // Only the sign-up button depends on the consents; signing in must never be
+    // blocked by checkboxes that are not even on screen.
+    if (mode === 'signup') submitButton.disabled = !all;
   }
 
   function linkFor(name, title) {
@@ -211,7 +214,8 @@ export function renderAuth(root, { onSignedIn }) {
     submitButton.textContent = mode === 'signin' ? '로그인' : '가입하고 시작하기';
     submitButton.disabled = mode === 'signup' ? !(termsCheck.checked && privacyCheck.checked && locationCheck.checked) : false;
 
-    form.replaceChildren(
+    setChildren(
+      form,
       ...fields,
       mode === 'signin'
         ? h(

@@ -48,6 +48,13 @@ function append(el, children) {
   }
 }
 
+/** Replace an element's children, skipping null/false so a conditional never renders "null". */
+export function setChildren(el, ...children) {
+  el.replaceChildren();
+  append(el, children);
+  return el;
+}
+
 export function mount(root, ...children) {
   root.replaceChildren();
   append(root, children);
