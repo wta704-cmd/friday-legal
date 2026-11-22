@@ -17,7 +17,6 @@ import {
   toast,
   section,
   list,
-  crest,
   emptyState,
 } from '../ui.js';
 import { appHeader, renderScreen, iconButton } from './common.js';

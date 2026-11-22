@@ -9,13 +9,11 @@ import * as fmt from '../lib/format.js';
 import {
   h,
   badge,
-  button,
   crest,
   openSheet,
   toast,
   emptyState,
   section,
-  spinner,
   statTile,
   barChart,
   switchToggle,

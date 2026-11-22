@@ -7,7 +7,7 @@
 import { matches as matchesApi, pitches as pitchesApi } from '../api.js';
 import { state, loadMatches, loadMembers, currentTeam, canManage, memberMap } from '../store.js';
 import * as fmt from '../lib/format.js';
-import { draftLineup, PER_SIDE, groupByQuarter } from '../lib/lineup.js';
+import { draftLineup, PER_SIDE } from '../lib/lineup.js';
 import {
   h,
   badge,
@@ -478,7 +478,7 @@ async function openMatchSheet(match, ctx) {
               voteControl(match, rsvps, draw),
               attendanceBlock(rsvps),
             ),
-            manager
+            manager && match.status === 'scheduled'
               ? card(
                   h('div', { class: 'card-head' },
                     h('h3', { class: 'card-title' }, '투표 마감'),

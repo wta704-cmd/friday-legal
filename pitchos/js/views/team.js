@@ -141,7 +141,6 @@ function positionSheet(member, { onChanged }) {
 
 function memberRow(member, { manager, onChanged }) {
   const isMe = member.user_id === state.profile?.id;
-  const role = ROLE_LABEL[member.role] || member.role;
   const meta = member.jersey_number != null ? `#${member.jersey_number}` : '';
   const clickable = manager && member.status === 'active';
   const tag = clickable ? 'button' : 'div';

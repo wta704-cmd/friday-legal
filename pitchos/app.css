@@ -126,6 +126,7 @@ p {
   flex-direction: column;
   width: 100%;
   max-width: 430px;
+  min-height: 100vh;
   min-height: 100dvh;
   margin: 0 auto;
   background: var(--bg);
@@ -141,6 +142,7 @@ p {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-height: 100vh;
   min-height: 100dvh;
 }
 
@@ -148,6 +150,7 @@ p {
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-height: 100vh;
   min-height: 100dvh;
   padding-bottom: 8px;
 }
@@ -2302,6 +2305,7 @@ select.input {
   flex-direction: column;
   width: 100%;
   max-width: 430px;
+  max-height: 92vh;
   max-height: 92dvh;
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--surface);
