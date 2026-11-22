@@ -4,7 +4,7 @@
 // go to the network, so a stale cache can never show another account's data or
 // a vote that was already replaced.
 
-const CACHE = 'pitchos-shell-v2';
+const CACHE = 'pitchos-shell-v3';
 
 const SHELL = [
   './',
@@ -20,6 +20,7 @@ const SHELL = [
   './js/lib/crest.js',
   './js/lib/format.js',
   './js/lib/lineup.js',
+  './js/lib/pitch.js',
   './js/views/auth.js',
   './js/views/common.js',
   './js/views/home.js',

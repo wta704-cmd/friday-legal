@@ -1,4 +1,4 @@
-// 마이 탭: 프로필, Q&A, 1:1 문의, 계정 관리(로그아웃·탈퇴), 앱 정보.
+// 마이 탭: 프로필 카드 + iOS 그룹 목록(프로필·Q&A·문의·앱 정보·계정 관리).
 
 import { auth, account, support, profiles, currentUser } from '../api.js';
 import { state, loadProfile, reset } from '../store.js';
@@ -6,7 +6,6 @@ import { APP_VERSION, SUPABASE_URL, SESSION_KEY } from '../config.js';
 import * as fmt from '../lib/format.js';
 import {
   h,
-  mount,
   badge,
   button,
   icon,
@@ -17,12 +16,14 @@ import {
   confirmDialog,
   toast,
   section,
-  card,
+  list,
+  crest,
+  emptyState,
 } from '../ui.js';
 import { appHeader, renderScreen, iconButton } from './common.js';
 
 // ---------------------------------------------------------------------------
-// Q&A (offline, 15 answers — same content as the native help screen)
+// Q&A (offline, same 15 answers as the native help screen)
 // ---------------------------------------------------------------------------
 
 const QA = [
@@ -44,12 +45,12 @@ const QA = [
   {
     cat: '팀',
     q: '초대코드는 어디서 보나요?',
-    a: '팀 탭 맨 위 카드에 6자리 코드가 3+3으로 표시됩니다. 옆의 [복사]를 누르면 클립보드에 복사됩니다. 팀원은 홈 또는 팀 탭의 [초대코드로 참여]에서 입력합니다.',
+    a: '팀 탭 맨 위 배너 아래에 6자리 코드가 3+3으로 표시됩니다. 옆의 [복사]를 누르면 클립보드에 복사됩니다. 팀원은 홈의 ‘초대코드로 참여’에서 입력합니다.',
   },
   {
     cat: '팀',
     q: '팀을 여러 개 만들 수 있나요?',
-    a: '무료 플랜은 팀 1개, 팀원 25명까지입니다. Team 플랜은 팀 3개·팀원 50명까지입니다. 여러 팀에 속하면 화면 위 팀 칩으로 전환합니다.',
+    a: '무료 플랜은 팀 1개, 팀원 25명까지입니다. Team 플랜은 팀 3개·팀원 50명까지입니다. 여러 팀에 속하면 홈 위 팀 칩으로 전환합니다.',
   },
   {
     cat: '기록',
@@ -99,11 +100,11 @@ const QA = [
   {
     cat: '기타',
     q: '문의는 어디로 하나요?',
-    a: '마이 → 1:1 문의에서 남겨 주세요. 앱 버전과 기기 정보가 함께 전달되어 더 빠르게 확인할 수 있습니다. 답변 상태는 같은 화면에서 볼 수 있습니다.',
+    a: '마이 → 1:1 문의에서 남겨 주세요. 앱 버전과 기기 정보가 함께 전달되어 더 빠르게 확인할 수 있습니다. 답변 상태는 내 문의에서 볼 수 있습니다.',
   },
 ];
 
-function qaSection() {
+function qaBrowser() {
   const search = h('input', {
     class: 'input search-input',
     type: 'search',
@@ -151,7 +152,7 @@ function qaSection() {
               h('p', { class: 'qa-a' }, item.a),
             ),
           )
-        : [h('p', { class: 'muted small pad' }, '검색 결과가 없습니다.')]),
+        : [h('p', { class: 'muted small pad center' }, '검색 결과가 없습니다.')]),
     );
   }
 
@@ -188,7 +189,7 @@ function openProfileEdit(ctx) {
     min: 1900,
     max: 2100,
     placeholder: '1995',
-    hint: '선택 입력. 팀원에게는 공개되지 않습니다.',
+    hint: '선택 입력. 본인만 볼 수 있습니다.',
   });
   const height = input({
     label: '키 (cm)',
@@ -216,12 +217,13 @@ function openProfileEdit(ctx) {
         h(
           'div',
           { class: 'stack' },
+          h('div', { class: 'card card-flush' }, h('div', { class: 'field-row' }, height.el, weight.el)),
           name.el,
-          mode.el,
-          birth.el,
-          h('div', { class: 'field-row' }, height.el, weight.el),
+          h('div', { class: 'field-row' }, mode.el, birth.el),
           button('저장', {
             block: true,
+            size: 'lg',
+            iconName: 'check',
             onClick: async (event) => {
               const target = event.currentTarget;
               const value = name.value.trim();
@@ -262,7 +264,7 @@ function openProfileEdit(ctx) {
               }
             },
           }),
-          h('p', { class: 'hint-box' }, '비밀번호 변경은 로그인 화면의 [비밀번호를 잊으셨나요?]와 같은 메일 재설정으로 처리합니다.'),
+          h('p', { class: 'hint-box' }, '비밀번호 변경은 로그인 화면의 [비밀번호를 잊으셨나요?] 재설정 메일로 처리합니다.'),
         ),
       );
     },
@@ -306,6 +308,8 @@ function openSupportForm(onDone) {
           h('p', { class: 'hint-box' }, '비밀번호·토큰·정확한 좌표는 적지 마세요. 필요한 경우 본사가 별도로 요청합니다.'),
           button('문의 보내기', {
             block: true,
+            size: 'lg',
+            iconName: 'mail',
             onClick: async (event) => {
               const target = event.currentTarget;
               const text = body.value.trim();
@@ -338,36 +342,89 @@ function openSupportForm(onDone) {
   });
 }
 
-function ticketsSection(tickets, onRefresh) {
-  if (!tickets?.length) {
-    return section(
-      '내 문의',
-      button('문의하기', { kind: 'ghost', size: 'sm', iconName: 'plus', onClick: () => openSupportForm(onRefresh) }),
-      h('p', { class: 'muted small pad' }, '접수한 문의가 없습니다.'),
-    );
-  }
-  return section(
-    '내 문의',
-    button('문의하기', { kind: 'ghost', size: 'sm', iconName: 'plus', onClick: () => openSupportForm(onRefresh) }),
-    h(
-      'div',
-      { class: 'card-tight' },
-      ...tickets.map((ticket) =>
+function openTickets(tickets, onRefresh) {
+  openSheet({
+    title: '내 문의',
+    subtitle: `${tickets.length}건 · 답변 상태를 확인할 수 있습니다.`,
+    render: (body) => {
+      body.appendChild(
         h(
           'div',
-          { class: 'ticket-row' },
+          { class: 'stack' },
+          tickets.length
+            ? h(
+                'div',
+                { class: 'list' },
+                ...tickets.map((ticket) =>
+                  h(
+                    'div',
+                    { class: 'ticket-row' },
+                    h(
+                      'div',
+                      { class: 'ticket-head' },
+                      badge(fmt.TICKET_CATEGORY_LABEL[ticket.category] || ticket.category, 'primary'),
+                      badge(
+                        fmt.TICKET_STATUS_LABEL[ticket.status] || ticket.status,
+                        ticket.status === 'answered' ? 'ok' : 'muted',
+                      ),
+                      h('span', { class: 'ticket-date' }, fmt.formatDateTime(ticket.created_at)),
+                    ),
+                    h('p', { class: 'ticket-body' }, ticket.body),
+                  ),
+                ),
+              )
+            : emptyState({ iconName: 'mail', title: '접수한 문의가 없습니다', body: '1:1 문의로 남기면 답변 상태를 여기서 확인할 수 있습니다.' }),
+          button('새 문의 쓰기', {
+            block: true,
+            kind: 'ghost',
+            iconName: 'plus',
+            onClick: () => openSupportForm(onRefresh),
+          }),
+        ),
+      );
+    },
+  });
+}
+
+function openInstallGuide() {
+  openSheet({
+    title: '홈 화면에 추가',
+    subtitle: 'Safari에서 한 번만 설정하면 앱처럼 열립니다.',
+    render: (body) => {
+      body.appendChild(
+        h(
+          'div',
+          { class: 'stack' },
           h(
             'div',
-            { class: 'ticket-head' },
-            badge(fmt.TICKET_CATEGORY_LABEL[ticket.category] || ticket.category, 'primary'),
-            badge(fmt.TICKET_STATUS_LABEL[ticket.status] || ticket.status, ticket.status === 'answered' ? 'ok' : 'muted'),
-            h('span', { class: 'ticket-date' }, fmt.formatDateTime(ticket.created_at)),
+            { class: 'card card-flush' },
+            h('div', { class: 'list-row', style: { border: '0', padding: '4px 0' } },
+              h('span', { class: 'list-row-icon' }, icon('share', { size: 17 })),
+              h('div', { class: 'list-row-main' },
+                h('span', { class: 'list-row-title' }, '1. Safari 공유 버튼'),
+                h('span', { class: 'list-row-sub' }, '주소 표시줄 아래 공유 아이콘을 누릅니다.'),
+              ),
+            ),
+            h('div', { class: 'list-row', style: { border: '0', padding: '4px 0' } },
+              h('span', { class: 'list-row-icon' }, icon('plus', { size: 17 })),
+              h('div', { class: 'list-row-main' },
+                h('span', { class: 'list-row-title' }, '2. 홈 화면에 추가'),
+                h('span', { class: 'list-row-sub' }, '목록을 조금 내리면 있습니다.'),
+              ),
+            ),
+            h('div', { class: 'list-row', style: { border: '0', padding: '4px 0' } },
+              h('span', { class: 'list-row-icon' }, icon('ball', { size: 17 })),
+              h('div', { class: 'list-row-main' },
+                h('span', { class: 'list-row-title' }, '3. 추가'),
+                h('span', { class: 'list-row-sub' }, '이제 주소 표시줄 없이 전체 화면으로 열립니다.'),
+              ),
+            ),
           ),
-          h('p', { class: 'ticket-body' }, ticket.body),
+          h('p', { class: 'hint-box' }, '안드로이드 크롬은 우측 상단 ⋮ → [홈 화면에 추가]입니다.'),
         ),
-      ),
-    ),
-  );
+      );
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -376,30 +433,24 @@ function ticketsSection(tickets, onRefresh) {
 
 async function build(root, ctx) {
   const content = h('div', { class: 'content' });
-  const screen = h(
-    'div',
-    { class: 'screen' },
-    appHeader({
-      title: '마이',
-      subtitle: state.profile?.display_name || '',
-      right: [iconButton('refresh', '새로고침', () => ctx.render())],
-    }),
-    content,
-  );
+  const header = appHeader({
+    title: '마이',
+    subtitle: state.profile?.display_name || null,
+    right: [iconButton('refresh', '새로고침', () => ctx.render())],
+  });
+  const screen = h('div', { class: 'screen' }, header, content);
 
   const profile = state.profile || (await loadProfile());
   const tickets = await support.list().catch(() => []);
 
   content.appendChild(
-    card(
+    h(
+      'div',
+      { class: 'profile-card' },
       h(
         'div',
         { class: 'profile-head' },
-        h(
-          'div',
-          { class: 'profile-avatar' },
-          (profile.display_name || 'P').slice(0, 1),
-        ),
+        h('div', { class: 'profile-avatar' }, (profile.display_name || 'P').slice(0, 1)),
         h(
           'div',
           { class: 'profile-main' },
@@ -407,69 +458,20 @@ async function build(root, ctx) {
           h('p', { class: 'profile-mail' }, currentUser()?.email || ''),
           h(
             'div',
-            { class: 'team-tags' },
+            { class: 'profile-tags' },
             badge(fmt.MODE_LABEL[profile.play_mode] || '풋살', 'primary'),
             profile.height_cm ? badge(`${profile.height_cm}cm`, 'muted') : null,
             profile.weight_kg ? badge(`${profile.weight_kg}kg`, 'muted') : null,
+            profile.birth_year ? badge(`${profile.birth_year}년생`, 'muted') : null,
           ),
         ),
       ),
-      h(
-        'div',
-        { class: 'btn-row' },
-        button('프로필 수정', { block: true, kind: 'ghost', iconName: 'user', onClick: () => openProfileEdit(ctx) }),
-      ),
-    ),
-  );
-
-  content.appendChild(section('마이 메뉴', null, h(
-    'div',
-    { class: 'card-tight' },
-    h('button', { class: 'list-row', type: 'button', onclick: () => openSupportForm(() => ctx.render()) },
-      h('div', { class: 'list-row-main' },
-        h('span', { class: 'list-row-title' }, '1:1 문의 / 버그 신고'),
-        h('span', { class: 'list-row-sub' }, '앱 버전과 기기 정보가 함께 전달됩니다.'),
-      ),
-      icon('chevron', { size: 18, className: 'chev' }),
-    ),
-    h('button', {
-      class: 'list-row',
-      type: 'button',
-      onclick: () => {
-        const el = document.getElementById('qa-anchor');
-        el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      },
-    },
-      h('div', { class: 'list-row-main' },
-        h('span', { class: 'list-row-title' }, '사용법 & Q&A'),
-        h('span', { class: 'list-row-sub' }, `${QA.length}개 문답 · 오프라인에서도 열립니다.`),
-      ),
-      icon('chevron', { size: 18, className: 'chev' }),
-    ),
-  )));
-
-  content.appendChild(
-    h('div', { id: 'qa-anchor' }, section('사용법 & Q&A', null, qaSection())),
-  );
-
-  content.appendChild(ticketsSection(tickets, () => ctx.render()));
-
-  content.appendChild(
-    section(
-      '앱 정보',
-      null,
-      h(
-        'div',
-        { class: 'card-tight' },
-        h('div', { class: 'info-row' }, h('span', { class: 'info-label' }, '버전'), h('span', { class: 'info-value' }, APP_VERSION)),
-        h('div', { class: 'info-row' }, h('span', { class: 'info-label' }, '서버'), h('span', { class: 'info-value small' }, SUPABASE_URL.replace('https://', ''))),
-        h('div', { class: 'info-row' }, h('span', { class: 'info-label' }, '세션'), h('span', { class: 'info-value small' }, localStorage.getItem(SESSION_KEY) ? '로그인됨' : '없음')),
-      ),
-      h(
-        'p',
-        { class: 'hint-box' },
-        '아이폰: Safari 공유 버튼 → [홈 화면에 추가]를 누르면 앱처럼 전체 화면으로 열립니다.',
-      ),
+      button('프로필 수정', {
+        block: true,
+        kind: 'ghost',
+        iconName: 'edit',
+        onClick: () => openProfileEdit(ctx),
+      }),
     ),
   );
 
@@ -477,65 +479,135 @@ async function build(root, ctx) {
     section(
       '계정',
       null,
-      h(
-        'div',
-        { class: 'card' },
-        h(
-          'div',
-          { class: 'list-row' },
-          h('div', { class: 'list-row-main' },
-            h('span', { class: 'list-row-title' }, '로그아웃'),
-            h('span', { class: 'list-row-sub' }, '이 기기에서만 로그아웃합니다.'),
-          ),
-          button('로그아웃', {
-            kind: 'ghost',
-            size: 'sm',
-            onClick: async () => {
-              const ok = await confirmDialog({
-                title: '로그아웃할까요?',
-                message: '다시 이메일로 로그인하면 기록이 그대로 보입니다.',
-                confirmLabel: '로그아웃',
-              });
-              if (!ok) return;
-              await auth.signOut();
+      list([
+        {
+          iconName: 'user',
+          title: '신체 정보 · 프로필',
+          sub: '이름, 종목, 키·몸무게, 출생연도',
+          onClick: () => openProfileEdit(ctx),
+        },
+        {
+          iconName: 'shield',
+          tone: 'ok',
+          title: '개인정보 · 공유 설정',
+          sub: '기록은 기본 비공개 · 원본 GPS는 본인만',
+          onClick: () =>
+            openSheet({
+              title: '개인정보 · 공유 설정',
+              render: (body) => {
+                body.appendChild(
+                  h(
+                    'div',
+                    { class: 'stack' },
+                    list([
+                      { iconName: 'lock', title: '원본 GPS 좌표', sub: '본인만 볼 수 있습니다.', value: '비공개' },
+                      { iconName: 'share', title: '경기 기록 공유', sub: '기록 탭에서 세션별로 켭니다.', value: '켜기 전 비공개' },
+                      { iconName: 'users', title: '팀에 보이는 정보', sub: '이름·포지션·참석 여부' },
+                      { iconName: 'shield', title: '키·몸무게·출생연도', sub: '팀원에게 공개되지 않습니다.' },
+                    ]),
+                    h('p', { class: 'hint-box' }, '공유를 켠 세션만 같은 경기의 팀원에게 집계 지표가 보입니다.'),
+                  ),
+                );
+              },
+            }),
+        },
+      ]),
+    ),
+  );
+
+  content.appendChild(
+    section(
+      '고객지원',
+      null,
+      list([
+        {
+          iconName: 'help',
+          title: '사용법 & Q&A',
+          sub: `${QA.length}개 문답 · 오프라인에서도 열립니다.`,
+          onClick: () =>
+            openSheet({
+              title: '사용법 & Q&A',
+              subtitle: '투표·팀·기록·구장·계정',
+              render: (body) => body.appendChild(qaBrowser()),
+            }),
+        },
+        {
+          iconName: 'mail',
+          title: '1:1 문의',
+          sub: '앱 버전과 기기 정보가 함께 전달됩니다.',
+          onClick: () => openSupportForm(() => ctx.render()),
+        },
+        {
+          iconName: 'info',
+          title: '내 문의',
+          sub: tickets.length ? `최근 ${tickets.length}건` : '접수한 문의가 없습니다.',
+          value: String(tickets.length),
+          onClick: () => openTickets(tickets, () => ctx.render()),
+        },
+      ]),
+    ),
+  );
+
+  content.appendChild(
+    section(
+      '앱 정보',
+      null,
+      list([
+        { iconName: 'ball', title: '버전', value: APP_VERSION },
+        { iconName: 'share', title: '홈 화면에 추가', sub: 'Safari 공유 → 홈 화면에 추가', onClick: openInstallGuide },
+        { iconName: 'shield', title: '서버', value: SUPABASE_URL.replace('https://', '').split('.')[0], sub: localStorage.getItem(SESSION_KEY) ? '로그인됨' : '세션 없음' },
+      ]),
+    ),
+  );
+
+  content.appendChild(
+    section(
+      '계정 관리',
+      null,
+      list([
+        {
+          iconName: 'logout',
+          title: '로그아웃',
+          sub: '이 기기에서만 로그아웃합니다.',
+          onClick: async () => {
+            const ok = await confirmDialog({
+              title: '로그아웃할까요?',
+              message: '다시 이메일로 로그인하면 기록이 그대로 보입니다.',
+              confirmLabel: '로그아웃',
+            });
+            if (!ok) return;
+            await auth.signOut();
+            reset();
+            ctx.onSignedOut?.();
+          },
+        },
+        {
+          iconName: 'trash',
+          tone: 'red',
+          danger: true,
+          title: '계정 탈퇴',
+          sub: '프로필·기록·위치 원본·팀 로고까지 즉시 삭제됩니다.',
+          onClick: async () => {
+            const ok = await confirmDialog({
+              title: '정말 탈퇴할까요?',
+              message: '계정과 기록이 즉시 삭제되고 되돌릴 수 없습니다. 계속하려면 아래에 "탈퇴"를 입력해 주세요.',
+              confirmLabel: '탈퇴하기',
+              danger: true,
+              requireText: '탈퇴',
+            });
+            if (!ok) return;
+            try {
+              toast('탈퇴 처리 중…', { ms: 2600 });
+              await account.remove();
               reset();
+              toast('탈퇴가 완료되었습니다.', { kind: 'ok', ms: 3200 });
               ctx.onSignedOut?.();
-            },
-          }),
-        ),
-        h(
-          'div',
-          { class: 'list-row' },
-          h('div', { class: 'list-row-main' },
-            h('span', { class: 'list-row-title danger' }, '계정 탈퇴'),
-            h('span', { class: 'list-row-sub' }, '프로필·기록·위치 원본·팀 로고까지 즉시 삭제됩니다. 되돌릴 수 없습니다.'),
-          ),
-          button('탈퇴', {
-            kind: 'danger',
-            size: 'sm',
-            onClick: async () => {
-              const ok = await confirmDialog({
-                title: '정말 탈퇴할까요?',
-                message:
-                  '계정과 기록이 즉시 삭제되고 되돌릴 수 없습니다. 계속하려면 아래에 "탈퇴"를 입력해 주세요.',
-                confirmLabel: '탈퇴하기',
-                danger: true,
-                requireText: '탈퇴',
-              });
-              if (!ok) return;
-              try {
-                toast('탈퇴 처리 중…', { ms: 2600 });
-                await account.remove();
-                reset();
-                toast('탈퇴가 완료되었습니다.', { kind: 'ok', ms: 3200 });
-                ctx.onSignedOut?.();
-              } catch (error) {
-                toast(error.message, { kind: 'error', ms: 4600 });
-              }
-            },
-          }),
-        ),
-      ),
+            } catch (error) {
+              toast(error.message, { kind: 'error', ms: 4600 });
+            }
+          },
+        },
+      ]),
     ),
   );
 

@@ -1,6 +1,22 @@
 // Deterministic team emblem, identical on every device without a server call.
 // Mirrors shared-spec/design-tokens.json -> teamCrest.
 
+export const AVATAR_TONES = [
+  { bg: '#E4EDFF', fg: '#1D4ED8' },
+  { bg: '#E4F7EC', fg: '#0B7A45' },
+  { bg: '#FFF1D9', fg: '#9A5B00' },
+  { bg: '#FDE8E8', fg: '#B42318' },
+  { bg: '#ECE9FD', fg: '#5B45C9' },
+  { bg: '#DFF5F5', fg: '#0E6E6E' },
+  { bg: '#FCE8F2', fg: '#A3206B' },
+  { bg: '#E9EEF7', fg: '#334155' },
+];
+
+/** Person avatar colours (soft background, readable ink) by the same stable hash. */
+export function avatarTone(name) {
+  return AVATAR_TONES[crestHash(name) % AVATAR_TONES.length];
+}
+
 export const CREST_PALETTE = [
   '#2563EB',
   '#1D4ED8',

@@ -11,7 +11,7 @@ import { renderMy } from './views/my.js';
 import { h, mount, icon, toast, readPrefs, writePrefs, errorState } from './ui.js';
 
 const TABS = [
-  { id: 'home', label: '경기·투표', icon: 'whistle', render: renderHome },
+  { id: 'home', label: '경기', icon: 'whistle', render: renderHome },
   { id: 'team', label: '팀', icon: 'team', render: renderTeam },
   { id: 'records', label: '기록', icon: 'chart', render: renderRecords },
   { id: 'my', label: '마이', icon: 'user', render: renderMy },
@@ -43,8 +43,8 @@ function buildTabbar() {
             else window.location.hash = `#/${tab.id}`;
           },
         },
-        icon(tab.icon, { size: 23 }),
-        h('span', null, tab.label),
+        icon(tab.icon, { size: 23, strokeWidth: 1.7 }),
+        h('span', { class: 'tab-label' }, tab.label),
       ),
     ),
   );
@@ -117,7 +117,7 @@ function installHint() {
   return h(
     'div',
     { class: 'install-hint' },
-    h('span', null, 'Safari 공유 버튼 → [홈 화면에 추가]를 누르면 앱처럼 전체 화면으로 열립니다.'),
+    h('span', null, 'Safari 공유 → [홈 화면에 추가]를 누르면 앱처럼 전체 화면으로 열립니다.'),
     h(
       'button',
       {
@@ -137,7 +137,15 @@ function installHint() {
 async function boot() {
   booted = true;
   tabbar.hidden = true;
-  mount(root, h('div', { class: 'boot' }, h('div', { class: 'boot-logo' }, icon('ball', { size: 30 })), h('p', null, 'PitchOS')));
+  mount(
+    root,
+    h(
+      'div',
+      { class: 'boot' },
+      h('div', { class: 'boot-logo' }, icon('ball', { size: 30 })),
+      h('p', null, 'PitchOS'),
+    ),
+  );
 
   const session = getSession();
   if (!session) {

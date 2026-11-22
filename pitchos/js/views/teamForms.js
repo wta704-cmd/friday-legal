@@ -1,8 +1,13 @@
-// 팀 만들기 / 초대코드 참여 sheets, used from both the 팀 tab and the empty 홈.
+// 팀 만들기 / 초대코드 참여 — 홈·팀·팀 전환 시트에서 함께 쓰는 바텀시트.
 
 import { teams as teamsApi } from '../api.js';
 import { loadTeams, selectTeam } from '../store.js';
-import { h, input, select, button, openSheet, toast } from '../ui.js';
+import { h, input, button, openSheet, toast, icon } from '../ui.js';
+
+const MODES = [
+  { value: 'futsal', label: '풋살', hint: '5:5 · 40×20m' },
+  { value: 'soccer', label: '축구', hint: '11:11 · 105×68m' },
+];
 
 export function openCreateTeam({ onDone } = {}) {
   const name = input({
@@ -12,15 +17,30 @@ export function openCreateTeam({ onDone } = {}) {
     hint: '1~30자. 팀 목록과 초대 화면에 표시됩니다.',
     required: true,
   });
-  const mode = select({
-    label: '종목',
-    value: 'futsal',
-    options: [
-      { value: 'futsal', label: '풋살 (5:5)' },
-      { value: 'soccer', label: '축구 (11:11)' },
-    ],
-    hint: '종목에 따라 속도 기준과 라인업 인원이 달라집니다.',
-  });
+
+  let mode = 'futsal';
+  const modeRow = h('div', { class: 'vote-seg', style: { gridTemplateColumns: '1fr 1fr' } });
+  function drawModes() {
+    modeRow.replaceChildren(
+      ...MODES.map((option) =>
+        h(
+          'button',
+          {
+            class: `vote-btn${mode === option.value ? ' is-active vote-muted' : ''}`,
+            type: 'button',
+            style: { height: '56px' },
+            onclick: () => {
+              mode = option.value;
+              drawModes();
+            },
+          },
+          h('span', null, option.label),
+          h('span', { style: { fontSize: '10.5px', fontWeight: '500', opacity: '.7' } }, option.hint),
+        ),
+      ),
+    );
+  }
+  drawModes();
 
   const sheet = openSheet({
     title: '팀 만들기',
@@ -31,9 +51,16 @@ export function openCreateTeam({ onDone } = {}) {
           'div',
           { class: 'stack' },
           name.el,
-          mode.el,
+          h('div', { class: 'field' }, h('span', { class: 'field-label' }, '종목'), modeRow),
+          h(
+            'p',
+            { class: 'hint-box' },
+            '종목에 따라 속도 기준과 라인업 인원(풋살 5명 / 축구 11명)이 달라집니다.',
+          ),
           button('팀 만들기', {
             block: true,
+            size: 'lg',
+            iconName: 'plus',
             onClick: async (event) => {
               const target = event.currentTarget;
               const value = name.value.trim();
@@ -43,7 +70,7 @@ export function openCreateTeam({ onDone } = {}) {
               }
               target.disabled = true;
               try {
-                const teamId = await teamsApi.create(value, mode.value);
+                const teamId = await teamsApi.create(value, mode);
                 await loadTeams();
                 selectTeam(teamId);
                 toast('팀을 만들었습니다.', { kind: 'ok' });
@@ -86,9 +113,15 @@ export function openJoinTeam({ onDone } = {}) {
         h(
           'div',
           { class: 'stack' },
+          h(
+            'div',
+            { class: 'empty-icon', style: { margin: '2px auto 0' } },
+            icon('key', { size: 24 }),
+          ),
           code.el,
           button('참여하기', {
             block: true,
+            size: 'lg',
             onClick: async (event) => {
               const target = event.currentTarget;
               const value = code.value.trim().toUpperCase();

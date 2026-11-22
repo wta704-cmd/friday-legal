@@ -9,7 +9,8 @@ RPC·같은 RLS**를 쓰므로 웹에서 만든 일정·투표가 폰 앱과 즉
 ```
 web/
   index.html                 셸 (viewport-fit=cover, apple-mobile-web-app-*, manifest)
-  app.css                    모바일 퍼스트 스타일 (블루 #2563EB, 430px 프레임)
+  app.css                    디자인 시스템 (Pretendard, 블루 #2563EB, 430px 프레임,
+                             18~26px 카드 라운드, 블러 앱바·탭바, 바텀시트)
   manifest.webmanifest       PWA 매니페스트
   sw.js                      오프라인 셸 (API 요청은 캐시하지 않음)
   icons/                     192·512·maskable·apple-touch-icon
@@ -22,9 +23,23 @@ web/
     lib/format.js            시간(KST)·거리·투표 라벨 등 순수 함수
     lib/crest.js             이름 기반 자동 엠블럼 (FNV-1a)
     lib/lineup.js            라인업 자동 배분 초안
+    lib/pitch.js             전술판(피치 보드) 선수 배치 계산 (단위 테스트)
     views/                   auth · home(경기·투표) · team · records · my
   tests/                     node --test 단위 테스트 (CI)
 ```
+
+## 디자인 (2026-11 리디자인)
+
+- 상단 고정 앱바(반투명 블러) + 하단 iOS 스타일 탭바(경기·팀·기록·마이, safe-area 대응).
+- 생성·수정 폼은 화면에 펼치지 않고 바텀시트로 분리: 경기 만들기, 구장 4점 등록,
+  팀 만들기/참여, 회원가입, 1:1 문의, 프로필·Q&A.
+- 홈: D-Day 히어로 카드 → 원탭 RSVP 4칩 + 참석 요약 바/아바타 → 전술판 라인업
+  (초록 피치 위 포지션별 선수 뱃지, 쿼터 탭, 자동 배분/저장) → 일정·지난 경기·구장.
+- 팀: 배너 + 초대코드 원탭 복사 + 포지션 필터 칩 + 팀원 목록(이니셜 아바타·포지션·역할 뱃지).
+- 기록: 2×2 KPI(총 거리·최고 속도·스프린트·활동 시간) + 쿼터별 미니 바 차트 +
+  iOS 토글 공유 + 팀 공유 기록 피드.
+- 마이: 프로필 카드 + iOS 그룹 목록(프로필·Q&A 15문항 시트·1:1 문의·앱 정보·로그아웃·탈퇴).
+- Pretendard는 jsDelivr CDN에서 받고, 오프라인이면 시스템 한글 폰트로 대체된다.
 
 ## 화면
 

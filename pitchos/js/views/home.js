@@ -1,23 +1,15 @@
-// 홈(경기·투표) 탭: 일정, 참석 투표와 마감, 라인업, 구장 4점 등록.
+// 홈(경기·투표): 다음 경기 히어로 카드, 원탭 참석 투표, 전술판 라인업,
+// 일정 목록, 구장.
 //
-// Every write goes through the RPCs the native apps use (create_match,
-// upsert_rsvp, finalize_rsvp, replace_lineup); the server decides ownership,
-// the deadline and whether a vote is still open.
+// 쓰기는 모두 네이티브 앱과 같은 RPC(create_match, upsert_rsvp, finalize_rsvp,
+// replace_lineup)로 보낸다. 소유권·마감 시각 판단은 서버가 한다.
 
 import { matches as matchesApi, pitches as pitchesApi } from '../api.js';
-import {
-  state,
-  loadMatches,
-  loadMembers,
-  currentTeam,
-  canManage,
-  memberMap,
-} from '../store.js';
+import { state, loadMatches, loadMembers, currentTeam, canManage, memberMap } from '../store.js';
 import * as fmt from '../lib/format.js';
 import { draftLineup, PER_SIDE, groupByQuarter } from '../lib/lineup.js';
 import {
   h,
-  mount,
   badge,
   button,
   icon,
@@ -29,12 +21,15 @@ import {
   section,
   card,
   spinner,
+  mount,
   input,
   select,
-  checkbox,
+  switchToggle,
+  pitchBoard,
+  avatarStack,
 } from '../ui.js';
-import { appHeader, teamStrip, renderScreen, iconButton } from './common.js';
-import { openCreateTeam, openJoinTeam } from './teamForms.js';
+import { appHeader, teamSwitcher, renderScreen, iconButton, noTeamState } from './common.js';
+import { openCreateTeam } from './teamForms.js';
 
 const rsvpCache = new Map();
 
@@ -47,21 +42,42 @@ async function loadRsvps(matchId, force = false) {
 
 function counts(rows) {
   const out = { going: 0, late: 0, maybe: 0, declined: 0, no_response: 0 };
-  for (const row of rows) out[row.status] = (out[row.status] || 0) + 1;
+  for (const row of rows || []) out[row.status] = (out[row.status] || 0) + 1;
   return out;
 }
 
 function attending(rows) {
-  return rows.filter((row) => row.status === 'going' || row.status === 'late');
+  return (rows || []).filter((row) => row.status === 'going' || row.status === 'late');
 }
 
 function myRow(rows) {
   const uid = state.profile?.id;
-  return rows.find((row) => row.user_id === uid) || null;
+  return (rows || []).find((row) => row.user_id === uid) || null;
 }
 
 function isClosed(match) {
   return fmt.deadlineState(match.rsvp_deadline_at).closed;
+}
+
+function dday(kickoff) {
+  const p = fmt.kstParts(kickoff);
+  const now = fmt.kstParts(new Date());
+  if (!p) return { text: '—', today: false };
+  const a = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day));
+  const b = Date.UTC(Number(now.year), Number(now.month) - 1, Number(now.day));
+  const diff = Math.round((a - b) / 86_400_000);
+  if (diff === 0) return { text: 'D-DAY', today: true };
+  return { text: diff > 0 ? `D-${diff}` : `D+${-diff}`, today: false };
+}
+
+function opponentName(match) {
+  if (match.opponent_name) return match.opponent_name;
+  const title = String(match.title || '').replace(/^vs\s*/i, '').trim();
+  return title || '상대 팀';
+}
+
+function metaItem(iconName, text) {
+  return h('span', { class: 'hero-meta-item' }, icon(iconName, { size: 13 }), text);
 }
 
 // ---------------------------------------------------------------------------
@@ -69,10 +85,10 @@ function isClosed(match) {
 // ---------------------------------------------------------------------------
 
 const VOTE_CHOICES = [
-  { status: 'going', label: '참석', tone: 'ok' },
-  { status: 'late', label: '지각', tone: 'warn' },
-  { status: 'maybe', label: '미정', tone: 'muted' },
-  { status: 'declined', label: '불참', tone: 'bad' },
+  { status: 'going', label: '참석', tone: 'ok', iconName: 'check' },
+  { status: 'late', label: '지각', tone: 'warn', iconName: 'clock' },
+  { status: 'maybe', label: '미정', tone: 'muted', iconName: 'help' },
+  { status: 'declined', label: '불참', tone: 'bad', iconName: 'x' },
 ];
 
 function askLateMinutes(match, current, onChange) {
@@ -87,13 +103,14 @@ function askLateMinutes(match, current, onChange) {
           { class: 'stack' },
           h(
             'div',
-            { class: 'eta-grid' },
+            { class: 'eta-grid', style: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' } },
             ...options.map((minutes) =>
               h(
                 'button',
                 {
-                  class: `eta-btn${current === minutes ? ' is-active' : ''}`,
+                  class: `btn ${current === minutes ? 'btn-primary' : 'btn-ghost'}`,
                   type: 'button',
+                  style: { minHeight: '46px' },
                   onclick: async () => {
                     try {
                       await matchesApi.setRsvp(match.id, 'late', minutes);
@@ -110,14 +127,14 @@ function askLateMinutes(match, current, onChange) {
               ),
             ),
           ),
-          h('p', { class: 'hint-box' }, '나중에 다시 눌러 언제든 바꿀 수 있습니다. 마감 시각이 지나면 잠깁니다.'),
+          h('p', { class: 'hint-box' }, '마감 전에는 언제든 다시 눌러 바꿀 수 있습니다.'),
         ),
       );
     },
   });
 }
 
-function voteControl(match, rows, onChange, { compact = false } = {}) {
+function voteControl(match, rows, onChange) {
   const mine = myRow(rows);
   const closed = isClosed(match);
 
@@ -150,79 +167,204 @@ function voteControl(match, rows, onChange, { compact = false } = {}) {
           }
         },
       },
-      active ? icon('check', { size: 15 }) : null,
+      icon(choice.iconName, { size: 16 }),
       label,
     );
   });
 
   return h(
     'div',
-    { class: `vote-block${compact ? ' compact' : ''}` },
+    { class: 'vote-block', style: { display: 'flex', flexDirection: 'column', gap: '9px' } },
     h('div', { class: 'vote-seg' }, ...buttons),
-    closed
-      ? h('p', { class: 'vote-note' }, '투표가 마감되었습니다.')
-      : mine
-        ? h('p', { class: 'vote-note' }, `내 투표: ${fmt.lateText(mine.status, mine.late_eta_min)} · ${fmt.deadlineState(match.rsvp_deadline_at).text}`)
-        : h('p', { class: 'vote-note' }, '아직 투표하지 않았습니다.'),
+    h(
+      'p',
+      { class: 'vote-note' },
+      closed
+        ? '투표가 마감되었습니다.'
+        : mine
+          ? h('span', null, '내 투표 ', h('b', null, fmt.lateText(mine.status, mine.late_eta_min)), ` · ${fmt.deadlineState(match.rsvp_deadline_at).text}`)
+          : '아직 투표하지 않았습니다.',
+    ),
+  );
+}
+
+function attendanceBlock(rows, onOpen) {
+  const c = counts(rows);
+  const total = c.going + c.late + c.maybe + c.declined;
+  if (!total) {
+    return h('p', { class: 'hint-box' }, '아직 투표한 팀원이 없습니다. 먼저 참석 여부를 남겨 보세요.');
+  }
+  const pct = (value) => `${Math.round((value / total) * 100)}%`;
+  return h(
+    'div',
+    { class: 'attend' },
+    h(
+      'div',
+      { class: 'attend-bar' },
+      c.going ? h('span', { class: 'attend-seg ok', style: { width: pct(c.going) } }) : null,
+      c.late ? h('span', { class: 'attend-seg warn', style: { width: pct(c.late) } }) : null,
+      c.maybe ? h('span', { class: 'attend-seg muted', style: { width: pct(c.maybe) } }) : null,
+      c.declined ? h('span', { class: 'attend-seg bad', style: { width: pct(c.declined) } }) : null,
+    ),
+    onOpen
+      ? h(
+          'button',
+          { class: 'attend-foot', type: 'button', onclick: onOpen },
+          h(
+            'span',
+            { class: 'row', style: { gap: '8px' } },
+            avatarStack(attending(rows)),
+            h(
+              'span',
+              { class: 'attend-legend' },
+              h('span', null, '참석·지각 ', h('b', null, String(c.going + c.late)), '명'),
+            ),
+          ),
+          icon('chevron', { size: 14, className: 'chev' }),
+        )
+      : null,
+    h(
+      'div',
+      { class: 'attend-legend' },
+      h('span', null, h('i', { class: 'legend-dot ok' }), `참석 ${c.going}`),
+      c.late ? h('span', null, h('i', { class: 'legend-dot warn' }), `지각 ${c.late}`) : null,
+      h('span', null, h('i', { class: 'legend-dot muted' }), `미정 ${c.maybe}`),
+      h('span', null, h('i', { class: 'legend-dot bad' }), `불참 ${c.declined}`),
+    ),
   );
 }
 
 // ---------------------------------------------------------------------------
-// Match detail sheet
+// Hero card
 // ---------------------------------------------------------------------------
 
-function infoRows(match, team) {
-  const rows = [
-    ['일시', fmt.formatKickoff(match.kickoff_at)],
-    ['구장', match.pitch_name || '구장 미정'],
-    ['쿼터', `${match.quarter_count}쿼터 × ${match.quarter_minutes}분`],
-    ['방식', match.is_indoor ? '실내 (위치 기록 없음)' : '야외 (GPS 기록)'],
-    ['종목', fmt.MODE_LABEL[match.mode] || match.mode],
-    ['종류', match.kind === 'practice' ? '팀 연습' : '경기'],
-    ['마감', match.rsvp_deadline_at ? fmt.formatDateTime(match.rsvp_deadline_at) : '마감 없음'],
-    ['상태', fmt.MATCH_STATUS_LABEL[match.status] || match.status],
-  ];
-  return rows;
+function heroSide(name, logoUrl, label, away = false) {
+  return h(
+    'div',
+    { class: `hero-side${away ? ' is-away' : ''}` },
+    crest(name, { size: 40, logoUrl, tone: logoUrl ? 'crest' : 'light' }),
+    h(
+      'div',
+      { style: { minWidth: '0' } },
+      h('span', { class: 'hero-side-name' }, name),
+      h('span', { class: 'hero-side-sub' }, label),
+    ),
+  );
 }
 
-function lineupSection(match, rsvps, saved, refresh) {
+function heroCard(match, team) {
+  const d = dday(match.kickoff_at);
+  const dl = fmt.deadlineState(match.rsvp_deadline_at);
+  const practice = match.kind === 'practice';
+  return h(
+    'section',
+    { class: 'hero' },
+    h(
+      'div',
+      { class: 'hero-top' },
+      h('span', { class: `dday${d.today ? ' is-today' : ''}` }, d.text),
+      h('span', { class: 'hero-kind' }, practice ? '팀 연습' : '경기'),
+      h(
+        'span',
+        { class: 'hero-deadline' },
+        icon('clock', { size: 12 }),
+        dl.closed ? '투표 마감' : dl.text,
+      ),
+    ),
+    h(
+      'div',
+      { class: 'hero-matchup' },
+      heroSide(team.name, team.logo_url, practice ? '자체 연습' : '우리 팀'),
+      practice ? null : h('span', { class: 'hero-vs' }, 'VS'),
+      practice
+        ? null
+        : heroSide(opponentName(match), null, '상대 팀', true),
+    ),
+    h(
+      'div',
+      { class: 'hero-meta' },
+      metaItem('calendar', fmt.formatKickoff(match.kickoff_at)),
+      metaItem('pin', match.pitch_name || '구장 미정'),
+      metaItem('flag', `${match.quarter_count}쿼터 × ${match.quarter_minutes}분`),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Lineup board
+// ---------------------------------------------------------------------------
+
+function lineupCard({ match, rows, saved, onSaved }) {
   const names = memberMap();
+  const nameOf = (userId) => names.get(userId)?.display_name || '팀원';
   let draft = null;
-  const holder = h('div', { class: 'stack' });
-  const going = attending(rsvps);
+  let quarter = 1;
+  const holder = h('div', { class: 'card lineup' });
+
+  function quarterRows() {
+    const source = draft || saved || [];
+    return source.filter((row) => Number(row.quarter) === quarter);
+  }
 
   function draw() {
-    const rows = draft || saved;
-    const grouped = groupByQuarter(rows);
     const manager = canManage();
+    const going = attending(rows);
+    const placed = quarterRows();
+    const tabs = h(
+      'div',
+      { class: 'quarter-tabs' },
+      ...Array.from({ length: Number(match.quarter_count) || 4 }, (_, index) => {
+        const value = index + 1;
+        return h(
+          'button',
+          {
+            class: `quarter-tab${quarter === value ? ' is-active' : ''}`,
+            type: 'button',
+            onclick: () => {
+              quarter = value;
+              draw();
+            },
+          },
+          `${value}Q`,
+        );
+      }),
+    );
 
-    const parts = [];
-    if (grouped.size === 0) {
-      parts.push(h('p', { class: 'muted small' }, '저장된 라인업이 없습니다.'));
-    } else {
+    const bench = going.filter((row) => !placed.some((item) => item.user_id === row.user_id));
+
+    const parts = [
+      h(
+        'div',
+        { class: 'lineup-top' },
+        h('h3', { class: 'card-title' }, '라인업'),
+        h('span', { class: 'card-sub' }, `${match.quarter_count}쿼터 · ${PER_SIDE[match.mode] || 5}:${PER_SIDE[match.mode] || 5}`),
+      ),
+      tabs,
+      pitchBoard({
+        rows: placed,
+        nameOf,
+        mode: match.mode,
+        empty: {
+          title: manager ? '자동 배분으로 시작하세요' : '라인업이 아직 없습니다',
+          body: manager
+            ? going.length
+              ? `참석·지각 ${going.length}명으로 포지션을 나눠 배치합니다.`
+              : '참석·지각으로 투표한 팀원이 있어야 만들 수 있습니다.'
+            : '팀장이 라인업을 짜면 여기에 표시됩니다.',
+        },
+      }),
+    ];
+
+    if (placed.length) {
       parts.push(
         h(
           'div',
-          { class: 'lineup-grid' },
-          ...[...grouped.entries()].map(([quarter, list]) =>
-            h(
-              'div',
-              { class: 'quarter-row' },
-              h('span', { class: 'quarter-label' }, `${quarter}Q`),
-              h(
-                'div',
-                { class: 'quarter-players' },
-                ...list.map((row) =>
-                  h(
-                    'span',
-                    { class: 'player-chip' },
-                    names.get(row.user_id)?.display_name || '팀원',
-                    row.position ? h('small', null, ` ${row.position}`) : null,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          { class: 'bench' },
+          h('span', { class: 'bench-label' }, '이번 쿼터'),
+          h('span', { class: 'bench-chip' }, `${placed.length}명 출전`),
+          bench.length
+            ? h('span', { class: 'bench-chip' }, `대기 ${bench.length}명`)
+            : null,
         ),
       );
     }
@@ -235,10 +377,10 @@ function lineupSection(match, rsvps, saved, refresh) {
       parts.push(
         h(
           'div',
-          { class: 'btn-row' },
-          button(draft ? '다시 배분' : '자동 배분 초안', {
+          { class: 'lineup-actions' },
+          button(draft ? '다시 배분' : '자동 배분', {
             kind: 'ghost',
-            block: true,
+            iconName: 'sparkles',
             disabled: going.length === 0,
             onClick: () => {
               draft = draftLineup({
@@ -249,29 +391,31 @@ function lineupSection(match, rsvps, saved, refresh) {
                   position: names.get(row.user_id)?.position || null,
                 })),
               });
+              quarter = 1;
               draw();
             },
           }),
           draft
             ? button('라인업 저장', {
-                block: true,
-                onClick: async () => {
+                iconName: 'check',
+                onClick: async (event) => {
+                  const target = event.currentTarget;
+                  target.disabled = true;
                   try {
                     const savedCount = await matchesApi.saveLineup(match.id, draft);
                     toast(`${savedCount}개 배치를 저장했습니다.`, { kind: 'ok' });
                     draft = null;
-                    await refresh();
+                    onSaved?.();
                   } catch (error) {
                     toast(error.message, { kind: 'error', ms: 4200 });
+                  } finally {
+                    target.disabled = false;
                   }
                 },
               })
             : null,
         ),
       );
-      if (going.length === 0) {
-        parts.push(h('p', { class: 'hint-box' }, '참석·지각으로 투표한 팀원이 있어야 초안을 만들 수 있습니다.'));
-      }
     }
 
     holder.replaceChildren(...parts.filter(Boolean));
@@ -281,6 +425,19 @@ function lineupSection(match, rsvps, saved, refresh) {
   return holder;
 }
 
+// ---------------------------------------------------------------------------
+// Match detail sheet
+// ---------------------------------------------------------------------------
+
+function infoRow(label, value) {
+  return h(
+    'div',
+    { class: 'info-row' },
+    h('span', { class: 'info-label' }, label),
+    h('span', { class: 'info-value' }, value),
+  );
+}
+
 async function openMatchSheet(match, ctx) {
   const sheet = openSheet({
     title: match.title,
@@ -288,70 +445,61 @@ async function openMatchSheet(match, ctx) {
     render: async (body) => {
       async function draw() {
         mount(body, spinner('경기 정보를 불러오는 중…'));
-        const [rsvps, lineups] = await Promise.all([
-          loadRsvps(match.id, true),
-          matchesApi.lineups(match.id),
-        ]);
-        const counts_ = counts(rsvps);
+        const [rsvps, lineups] = await Promise.all([loadRsvps(match.id, true), matchesApi.lineups(match.id)]);
+        const c = counts(rsvps);
         const manager = canManage();
         const closed = isClosed(match);
-        const names = memberMap();
-
-        const summary = [
-          ['참석', counts_.going, 'ok'],
-          ['지각', counts_.late, 'warn'],
-          ['미정', counts_.maybe, 'muted'],
-          ['불참', counts_.declined, 'bad'],
-        ];
+        const rows = [...rsvps].sort((a, b) => {
+          const order = { going: 0, late: 1, maybe: 2, declined: 3, no_response: 4 };
+          return (order[a.status] ?? 5) - (order[b.status] ?? 5);
+        });
 
         mount(
           body,
           h(
             'div',
             { class: 'stack' },
-            card(
-              ...infoRows(match).map(([label, value]) =>
-                h('div', { class: 'info-row' }, h('span', { class: 'info-label' }, label), h('span', { class: 'info-value' }, value)),
-              ),
+            h(
+              'div',
+              { class: 'meta-grid' },
+              h('div', { class: 'meta-cell' }, h('span', { class: 'meta-label' }, '일시'), h('span', { class: 'meta-value' }, fmt.formatKickoff(match.kickoff_at))),
+              h('div', { class: 'meta-cell' }, h('span', { class: 'meta-label' }, '구장'), h('span', { class: 'meta-value' }, match.pitch_name || '구장 미정')),
+              h('div', { class: 'meta-cell' }, h('span', { class: 'meta-label' }, '쿼터'), h('span', { class: 'meta-value' }, `${match.quarter_count} × ${match.quarter_minutes}분`)),
+              h('div', { class: 'meta-cell' }, h('span', { class: 'meta-label' }, '방식'), h('span', { class: 'meta-value' }, match.is_indoor ? '실내 · 시간/심박' : '야외 · GPS')),
             ),
             card(
               h('h3', { class: 'card-title' }, '내 투표'),
               voteControl(match, rsvps, draw),
-              h(
-                'div',
-                { class: 'count-row' },
-                ...summary.map(([label, value, tone]) => h('span', { class: `count-pill tone-${tone}` }, `${label} ${value}`)),
-              ),
+              attendanceBlock(rsvps),
             ),
             manager
               ? card(
-                  h('h3', { class: 'card-title' }, '관리자'),
-                  h(
-                    'div',
-                    { class: 'btn-row' },
-                    button('투표 마감', {
-                      kind: closed ? 'primary' : 'ghost',
-                      block: true,
-                      disabled: !closed,
-                      onClick: async () => {
-                        const ok = await confirmDialog({
-                          title: '투표를 지금 마감할까요?',
-                          message: '마감하면 응답하지 않은 팀원은 불참으로 기록되고, 이후 투표를 바꿀 수 없습니다.',
-                          confirmLabel: '마감',
-                        });
-                        if (!ok) return;
-                        try {
-                          const inserted = await matchesApi.finalize(match.id);
-                          toast(`마감했습니다. 미응답 ${inserted}명을 불참으로 기록했습니다.`, { kind: 'ok', ms: 4000 });
-                          await draw();
-                          // Redraw the list behind the sheet so the card shows the closed vote.
-                          void ctx.render();
-                        } catch (error) {
-                          toast(error.message, { kind: 'error', ms: 4200 });
-                        }
-                      },
-                    }),
+                  h('div', { class: 'card-head' },
+                    h('h3', { class: 'card-title' }, '투표 마감'),
+                    badge(fmt.MATCH_STATUS_LABEL[match.status] || match.status, 'muted'),
                   ),
+                  button(closed ? '마감하고 미응답자 불참 처리' : '마감 준비 중', {
+                    kind: closed ? 'primary' : 'ghost',
+                    block: true,
+                    disabled: !closed,
+                    iconName: 'lock',
+                    onClick: async () => {
+                      const ok = await confirmDialog({
+                        title: '투표를 지금 마감할까요?',
+                        message: '마감하면 응답하지 않은 팀원은 불참으로 기록되고, 이후 투표를 바꿀 수 없습니다.',
+                        confirmLabel: '마감',
+                      });
+                      if (!ok) return;
+                      try {
+                        const inserted = await matchesApi.finalize(match.id);
+                        toast(`마감했습니다. 미응답 ${inserted}명을 불참으로 기록했습니다.`, { kind: 'ok', ms: 4000 });
+                        await draw();
+                        void ctx.render();
+                      } catch (error) {
+                        toast(error.message, { kind: 'error', ms: 4200 });
+                      }
+                    },
+                  }),
                   h(
                     'p',
                     { class: 'hint-box' },
@@ -366,35 +514,39 @@ async function openMatchSheet(match, ctx) {
               h('span', { class: 'section-note' }, `${rsvps.length}명`),
               h(
                 'div',
-                { class: 'card-tight rsvp-list' },
-                ...(rsvps.length
-                  ? rsvps
-                      .slice()
-                      .sort((a, b) => {
-                        const order = { going: 0, late: 1, maybe: 2, declined: 3, no_response: 4 };
-                        return (order[a.status] ?? 5) - (order[b.status] ?? 5);
-                      })
-                      .map((row) =>
+                { class: 'list' },
+                ...(rows.length
+                  ? rows.map((row) =>
+                      h(
+                        'div',
+                        { class: 'member-row' },
+                        crest(row.display_name || 'P', { size: 34, tone: 'avatar' }),
                         h(
                           'div',
-                          { class: 'rsvp-row' },
-                          crest(row.display_name || 'P', { size: 32 }),
+                          { class: 'member-main' },
                           h(
-                            'div',
-                            { class: 'rsvp-main' },
-                            h('span', { class: 'rsvp-name' }, row.display_name, row.user_id === state.profile?.id ? h('span', { class: 'me-tag' }, '나') : null),
-                            h('span', { class: 'rsvp-sub' }, [fmt.ROLE_LABEL[row.role] || row.role, row.position].filter(Boolean).join(' · ')),
+                            'span',
+                            { class: 'member-name' },
+                            row.display_name,
+                            row.user_id === state.profile?.id ? h('span', { class: 'me-tag' }, '나') : null,
                           ),
-                          badge(fmt.lateText(row.status, row.late_eta_min), fmt.RSVP_TONE[row.status] || 'muted'),
+                          h(
+                            'span',
+                            { class: 'member-meta' },
+                            [fmt.ROLE_LABEL[row.role] || row.role, row.position].filter(Boolean).join(' · '),
+                          ),
                         ),
-                      )
-                  : [h('p', { class: 'muted small' }, '아직 투표한 팀원이 없습니다.')]),
+                        badge(fmt.lateText(row.status, row.late_eta_min), fmt.RSVP_TONE[row.status] || 'muted'),
+                      ),
+                    )
+                  : [h('p', { class: 'muted small pad' }, '아직 투표한 팀원이 없습니다.')]),
               ),
             ),
-            section(
-              `라인업 (${match.quarter_count}쿼터)`,
-              canManage() ? h('span', { class: 'section-note' }, '자동 배분 후 저장') : null,
-              lineupSection(match, rsvps, lineups || [], draw),
+            lineupCard({ match, rows: rsvps, saved: lineups || [], onSaved: draw }),
+            h(
+              'p',
+              { class: 'hint-box' },
+              `투표 마감 ${match.rsvp_deadline_at ? fmt.formatDateTime(match.rsvp_deadline_at) : '없음'} · ${fmt.MODE_LABEL[match.mode] || match.mode} ${match.kind === 'practice' ? '팀 연습' : '경기'}`,
             ),
           ),
         );
@@ -402,7 +554,15 @@ async function openMatchSheet(match, ctx) {
       try {
         await draw();
       } catch (error) {
-        mount(body, h('div', { class: 'empty' }, h('p', { class: 'empty-title' }, '불러오지 못했습니다'), h('p', { class: 'empty-body' }, error.message)));
+        mount(
+          body,
+          h(
+            'div',
+            { class: 'empty' },
+            h('p', { class: 'empty-title' }, '불러오지 못했습니다'),
+            h('p', { class: 'empty-body' }, error.message),
+          ),
+        );
       }
     },
   });
@@ -425,14 +585,33 @@ function nextSaturdayEvening() {
 
 function openCreateMatch(ctx) {
   const team = currentTeam();
-  const kind = select({
-    label: '종류',
-    value: 'match',
-    options: [
-      { value: 'match', label: '경기 (상대 팀)' },
-      { value: 'practice', label: '팀 연습' },
-    ],
-  });
+  let kind = 'match';
+  const kindSeg = h('div', { class: 'vote-seg', style: { gridTemplateColumns: '1fr 1fr' } });
+  function drawKind() {
+    kindSeg.replaceChildren(
+      ...[
+        { value: 'match', label: '경기' },
+        { value: 'practice', label: '팀 연습' },
+      ].map((option) =>
+        h(
+          'button',
+          {
+            class: `vote-btn${kind === option.value ? ' is-active vote-muted' : ''}`,
+            type: 'button',
+            style: { height: '46px', flexDirection: 'row', gap: '5px' },
+            onclick: () => {
+              kind = option.value;
+              drawKind();
+              opponent.el.style.display = kind === 'practice' ? 'none' : '';
+            },
+          },
+          option.label,
+        ),
+      ),
+    );
+  }
+  drawKind();
+
   const kickoff = input({
     label: '경기 일시',
     type: 'datetime-local',
@@ -441,7 +620,6 @@ function openCreateMatch(ctx) {
   });
   const opponent = input({ label: '상대 팀 이름', placeholder: '예: 화이트울브스', maxlength: 40 });
   const pitchName = input({ label: '구장 이름', placeholder: '예: 강남 풋살파크 A구장', maxlength: 60 });
-  const indoor = checkbox({ label: '실내 구장 (GPS 없이 시간·심박만 기록)', checked: false });
   const quarterCount = select({
     label: '쿼터 수',
     value: '4',
@@ -452,29 +630,36 @@ function openCreateMatch(ctx) {
     value: '12',
     options: [8, 10, 12, 15, 20, 25].map((n) => ({ value: String(n), label: `${n}분` })),
   });
+  let indoor = false;
 
   const sheet = openSheet({
     title: '경기 만들기',
     subtitle: `${team.name} · ${fmt.MODE_LABEL[team.mode] || team.mode}`,
     render: (body) => {
-      const toggleOpponent = () => {
-        opponent.el.style.display = kind.value === 'practice' ? 'none' : '';
-      };
-      kind.input.addEventListener('change', toggleOpponent);
-      toggleOpponent();
-
       body.appendChild(
         h(
           'div',
           { class: 'stack' },
-          kind.el,
+          h('div', { class: 'field' }, h('span', { class: 'field-label' }, '종류'), kindSeg),
           kickoff.el,
           opponent.el,
           pitchName.el,
           h('div', { class: 'field-row' }, quarterCount.el, quarterMinutes.el),
-          indoor.el,
+          h(
+            'div',
+            { class: 'share-row' },
+            h(
+              'div',
+              { class: 'share-row-main' },
+              h('span', { class: 'share-title' }, '실내 구장'),
+              h('span', { class: 'share-sub' }, 'GPS 없이 시간·심박만 기록합니다.'),
+            ),
+            switchToggle({ checked: false, label: '실내 구장', onChange: (next) => (indoor = next) }),
+          ),
           button('경기 만들기', {
             block: true,
+            size: 'lg',
+            iconName: 'plus',
             onClick: async (event) => {
               const target = event.currentTarget;
               const iso = fmt.fromLocalInput(kickoff.value);
@@ -490,10 +675,10 @@ function openCreateMatch(ctx) {
               try {
                 await matchesApi.create({
                   teamId: team.id,
-                  kind: kind.value,
+                  kind,
                   kickoff: iso,
                   pitchName: pitchName.value.trim(),
-                  indoor: indoor.checked,
+                  indoor,
                   quarterCount: Number(quarterCount.value),
                   quarterMinutes: Number(quarterMinutes.value),
                   opponent: opponent.value.trim(),
@@ -553,15 +738,15 @@ function openPitchForm(ctx) {
   const defaults = team.mode === 'soccer' ? { w: '105', h: '68' } : { w: '40', h: '20' };
 
   const name = input({ label: '구장 이름', placeholder: '예: 강남 풋살파크 A', maxlength: 60, required: true });
-  const width = input({ label: '폭 (골대에서 골대까지, m)', type: 'number', value: defaults.w, min: 10, max: 130, step: '0.5' });
-  const height = input({ label: '길이 (터치라인, m)', type: 'number', value: defaults.h, min: 10, max: 100, step: '0.5' });
-  const indoor = checkbox({ label: '실내 구장', checked: false });
+  const width = input({ label: '폭 (m)', type: 'number', value: defaults.w, min: 10, max: 130, step: '0.5' });
+  const height = input({ label: '길이 (m)', type: 'number', value: defaults.h, min: 10, max: 100, step: '0.5' });
+  let indoor = false;
 
   const cornerFields = CORNERS.map((corner) => {
-    const lat = input({ label: `${corner.label} 위도`, type: 'number', step: '0.000001', inputmode: 'decimal', placeholder: '37.5...' });
-    const lon = input({ label: `${corner.label} 경도`, type: 'number', step: '0.000001', inputmode: 'decimal', placeholder: '127.0...' });
+    const lat = input({ label: '위도', type: 'number', step: '0.000001', inputmode: 'decimal', placeholder: '37.5…' });
+    const lon = input({ label: '경도', type: 'number', step: '0.000001', inputmode: 'decimal', placeholder: '127.0…' });
     const here = button('현재 위치', {
-      kind: 'ghost',
+      kind: 'soft',
       size: 'sm',
       iconName: 'pin',
       onClick: async (event) => {
@@ -584,16 +769,30 @@ function openPitchForm(ctx) {
 
   const sheet = openSheet({
     title: '구장 4점 등록',
-    subtitle: '골대 뒤 왼쪽부터 시계 방향으로 4개 꼭짓점을 찍습니다.',
+    subtitle: '골대 뒤 왼쪽부터 시계 방향으로 네 꼭짓점을 찍습니다.',
     render: (body) => {
       body.appendChild(
         h(
           'div',
           { class: 'stack' },
-          h('p', { class: 'hint-box' }, '내 골대 뒤 왼쪽 → 오른쪽 → 상대 골대 오른쪽 → 왼쪽 순서로, 구장 네 귀퉁이에 서서 [현재 위치]를 누르면 정확합니다.'),
+          h(
+            'p',
+            { class: 'hint-box' },
+            '내 골대 뒤 왼쪽 → 오른쪽 → 상대 골대 오른쪽 → 왼쪽 순서로, 구장 네 귀퉁이에 서서 [현재 위치]를 누르면 정확합니다.',
+          ),
           name.el,
           h('div', { class: 'field-row' }, width.el, height.el),
-          indoor.el,
+          h(
+            'div',
+            { class: 'share-row' },
+            h(
+              'div',
+              { class: 'share-row-main' },
+              h('span', { class: 'share-title' }, '실내 구장'),
+              h('span', { class: 'share-sub' }, '실내면 GPS 대신 시간·심박으로 기록합니다.'),
+            ),
+            switchToggle({ checked: false, label: '실내 구장', onChange: (next) => (indoor = next) }),
+          ),
           ...cornerFields.map((corner) =>
             h(
               'div',
@@ -604,6 +803,8 @@ function openPitchForm(ctx) {
           ),
           button('구장 저장', {
             block: true,
+            size: 'lg',
+            iconName: 'check',
             onClick: async (event) => {
               const target = event.currentTarget;
               const title = name.value.trim();
@@ -613,13 +814,13 @@ function openPitchForm(ctx) {
               if (!(w >= 10 && w <= 130)) return toast('폭은 10~130m 사이여야 합니다.', { kind: 'error' });
               if (!(hgt >= 10 && hgt <= 100)) return toast('길이는 10~100m 사이여야 합니다.', { kind: 'error' });
 
-              const body_ = {
+              const row = {
                 team_id: team.id,
                 name: title,
                 mode: team.mode,
                 width_m: w,
                 height_m: hgt,
-                is_indoor: indoor.checked,
+                is_indoor: indoor,
                 created_by: state.profile.id,
                 calibration: { source: 'web', corners: 'near_left,near_right,far_right,far_left' },
               };
@@ -631,13 +832,13 @@ function openPitchForm(ctx) {
                 }
                 if (lat < -90 || lat > 90) return toast(`${corner.label} 위도가 범위를 벗어났습니다.`, { kind: 'error' });
                 if (lon < -180 || lon > 180) return toast(`${corner.label} 경도가 범위를 벗어났습니다.`, { kind: 'error' });
-                body_[`corner_${corner.key}_lat`] = lat;
-                body_[`corner_${corner.key}_lon`] = lon;
+                row[`corner_${corner.key}_lat`] = lat;
+                row[`corner_${corner.key}_lon`] = lon;
               }
 
               target.disabled = true;
               try {
-                await pitchesApi.create(body_);
+                await pitchesApi.create(row);
                 toast('구장을 등록했습니다.', { kind: 'ok' });
                 sheet.close();
                 ctx.render();
@@ -655,43 +856,88 @@ function openPitchForm(ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// Schedule rows
+// ---------------------------------------------------------------------------
+
+function dateBlock(value) {
+  const p = fmt.kstParts(value);
+  if (!p) return h('span', { class: 'date-block' }, '—');
+  return h(
+    'span',
+    { class: 'date-block', 'aria-hidden': 'true' },
+    h('b', null, String(Number(p.month))),
+    h('span', null, `${Number(p.day)}일`),
+  );
+}
+
+function matchRow(match, rows, onOpen, { past = false } = {}) {
+  const mine = myRow(rows);
+  const d = dday(match.kickoff_at);
+  return h(
+    'button',
+    { class: 'member-row', type: 'button', onclick: onOpen },
+    dateBlock(match.kickoff_at),
+    h(
+      'div',
+      { class: 'member-main' },
+      h(
+        'span',
+        { class: 'member-name' },
+        match.title,
+        !past && d.text ? h('span', { class: 'me-tag' }, d.text) : null,
+      ),
+      h(
+        'span',
+        { class: 'member-meta' },
+        `${fmt.formatKickoff(match.kickoff_at)} · ${match.pitch_name || '구장 미정'}`,
+      ),
+    ),
+    past
+      ? badge(fmt.MATCH_STATUS_LABEL[match.status] || match.status, 'muted')
+      : mine
+        ? badge(fmt.lateText(mine.status, mine.late_eta_min), fmt.RSVP_TONE[mine.status])
+        : badge('미응답', 'muted'),
+    icon('chevron', { size: 17, className: 'chev' }),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
 async function build(root, ctx) {
   const team = currentTeam();
   const content = h('div', { class: 'content' });
-  const header = appHeader({
-    title: '경기·투표',
-    subtitle: team ? `${team.name} · ${fmt.MODE_LABEL[team.mode] || team.mode}` : '팀을 먼저 만들어 주세요',
-    right: [
-      canManage() ? iconButton('plus', '경기 만들기', () => openCreateMatch(ctx)) : null,
-      iconButton('refresh', '새로고침', () => {
-        rsvpCache.clear();
-        ctx.render();
-      }),
-    ],
-  });
-  const screen = h('div', { class: 'screen' }, header, teamStrip(() => ctx.render()), content);
+  const screen = h(
+    'div',
+    { class: 'screen' },
+    appHeader({
+      title: '경기·투표',
+      subtitle: team ? `${team.name} · ${fmt.MODE_LABEL[team.mode] || team.mode}` : '팀을 먼저 만들어 주세요',
+      right: [
+        canManage() ? iconButton('plus', '경기 만들기', () => openCreateMatch(ctx)) : null,
+        iconButton('refresh', '새로고침', () => {
+          rsvpCache.clear();
+          ctx.render();
+        }),
+      ],
+    }),
+    content,
+  );
 
   if (!state.teams.length) {
     content.appendChild(
-      emptyState({
+      noTeamState({
         iconName: 'whistle',
-        title: '팀이 있어야 경기를 만들 수 있습니다',
-        body: '팀을 만들면 6자리 초대코드로 팀원을 모으고, 경기 일정과 참석 투표를 시작할 수 있습니다.',
+        title: '팀을 만들고 경기를 시작하세요',
+        body: '6자리 초대코드로 팀원을 모으면 일정·참석 투표·라인업을 바로 쓸 수 있습니다.',
+        onDone: () => ctx.render(),
       }),
-    );
-    content.appendChild(
-      h(
-        'div',
-        { class: 'btn-row' },
-        button('팀 만들기', { block: true, onClick: () => openCreateTeam({ onDone: () => ctx.render() }) }),
-        button('초대코드로 참여', { block: true, kind: 'ghost', onClick: () => openJoinTeam({ onDone: () => ctx.render() }) }),
-      ),
     );
     return screen;
   }
+
+  content.appendChild(teamSwitcher(() => ctx.render()));
 
   await Promise.all([loadMembers(team.id), loadMatches(team.id)]);
   const now = Date.now();
@@ -701,48 +947,37 @@ async function build(root, ctx) {
     .sort((a, b) => new Date(a.kickoff_at) - new Date(b.kickoff_at));
   const past = all.filter((match) => !upcoming.includes(match));
 
-  // Vote tallies for the next few matches, so the list shows real numbers.
   await Promise.all(upcoming.slice(0, 4).map((match) => loadRsvps(match.id).catch(() => [])));
 
   const next = upcoming[0];
   if (next) {
     const rows = rsvpCache.get(next.id) || [];
-    const c = counts(rows);
-    const deadline = fmt.deadlineState(next.rsvp_deadline_at);
+    let saved = [];
+    try {
+      saved = (await matchesApi.lineups(next.id)) || [];
+    } catch {
+      saved = [];
+    }
+    content.appendChild(heroCard(next, team));
     content.appendChild(
-      card(
-        h(
-          'div',
-          { class: 'hero-head' },
-          h('div', { class: 'hero-tags' },
-            badge(next.kind === 'practice' ? '팀 연습' : '경기', 'primary'),
-            badge(deadline.text, deadline.tone === 'closed' ? 'muted' : deadline.tone === 'soon' ? 'warn' : 'ok'),
-          ),
-          h('h2', { class: 'hero-title' }, next.title),
-          h('p', { class: 'hero-meta' },
-            h('span', null, fmt.formatKickoff(next.kickoff_at)),
-            h('span', { class: 'dot' }, '·'),
-            h('span', null, next.pitch_name || '구장 미정'),
-          ),
-        ),
-        h(
-          'div',
-          { class: 'count-row' },
-          h('span', { class: 'count-pill tone-ok' }, `참석 ${c.going}`),
-          h('span', { class: 'count-pill tone-warn' }, `지각 ${c.late}`),
-          h('span', { class: 'count-pill tone-muted' }, `미정 ${c.maybe}`),
-          h('span', { class: 'count-pill tone-bad' }, `불참 ${c.declined}`),
-        ),
+      h(
+        'div',
+        { class: 'card vote-card' },
         voteControl(next, rows, () => ctx.render()),
-        h(
-          'div',
-          { class: 'btn-row' },
-          button(canManage() ? '투표 현황·라인업' : '경기 자세히', {
-            kind: canManage() ? 'primary' : 'ghost',
-            block: true,
-            onClick: () => openMatchSheet(next, ctx),
-          }),
-        ),
+        attendanceBlock(rows, () => openMatchSheet(next, ctx)),
+        button(canManage() ? '투표 현황 · 라인업' : '경기 자세히', {
+          block: true,
+          kind: canManage() ? 'primary' : 'ghost',
+          iconName: 'chevron',
+          onClick: () => openMatchSheet(next, ctx),
+        }),
+      ),
+    );
+    content.appendChild(
+      section(
+        '라인업',
+        h('span', { class: 'section-note' }, `${next.quarter_count}쿼터`),
+        lineupCard({ match: next, rows, saved, onSaved: () => ctx.render() }),
       ),
     );
   } else {
@@ -750,7 +985,9 @@ async function build(root, ctx) {
       emptyState({
         iconName: 'calendar',
         title: '예정된 경기가 없습니다',
-        body: canManage() ? '경기를 만들면 팀원에게 참석 투표가 열립니다.' : '팀장이 경기를 만들면 여기에 표시됩니다.',
+        body: canManage()
+          ? '경기를 만들면 팀원에게 참석 투표가 열리고, 다음 경기 카드가 여기에 표시됩니다.'
+          : '팀장이 경기를 만들면 여기에 표시됩니다.',
         actionLabel: canManage() ? '경기 만들기' : null,
         onAction: () => openCreateMatch(ctx),
       }),
@@ -760,27 +997,14 @@ async function build(root, ctx) {
   if (upcoming.length > 1) {
     content.appendChild(
       section(
-        '다음 일정',
-        null,
+        '다가오는 일정',
+        h('span', { class: 'section-note' }, `${upcoming.length - 1}건`),
         h(
           'div',
-          { class: 'card-tight' },
-          ...upcoming.slice(1).map((match) => {
-            const rows = rsvpCache.get(match.id) || [];
-            const mine = myRow(rows);
-            return h(
-              'button',
-              { class: 'list-row', type: 'button', onclick: () => openMatchSheet(match, ctx) },
-              h(
-                'div',
-                { class: 'list-row-main' },
-                h('span', { class: 'list-row-title' }, match.title),
-                h('span', { class: 'list-row-sub' }, `${fmt.formatKickoff(match.kickoff_at)} · ${match.pitch_name || '구장 미정'}`),
-              ),
-              mine ? badge(fmt.lateText(mine.status, mine.late_eta_min), fmt.RSVP_TONE[mine.status]) : badge('미응답', 'muted'),
-              icon('chevron', { size: 18, className: 'chev' }),
-            );
-          }),
+          { class: 'list' },
+          ...upcoming.slice(1).map((match) =>
+            matchRow(match, rsvpCache.get(match.id) || [], () => openMatchSheet(match, ctx)),
+          ),
         ),
       ),
     );
@@ -793,27 +1017,15 @@ async function build(root, ctx) {
         h('span', { class: 'section-note' }, `${past.length}건`),
         h(
           'div',
-          { class: 'card-tight' },
+          { class: 'list' },
           ...past.slice(0, 12).map((match) =>
-            h(
-              'button',
-              { class: 'list-row', type: 'button', onclick: () => openMatchSheet(match, ctx) },
-              h(
-                'div',
-                { class: 'list-row-main' },
-                h('span', { class: 'list-row-title' }, match.title),
-                h('span', { class: 'list-row-sub' }, `${fmt.formatDateTime(match.kickoff_at)} · ${match.pitch_name || '구장 미정'}`),
-              ),
-              badge(fmt.MATCH_STATUS_LABEL[match.status] || match.status, 'muted'),
-              icon('chevron', { size: 18, className: 'chev' }),
-            ),
+            matchRow(match, [], () => openMatchSheet(match, ctx), { past: true }),
           ),
         ),
       ),
     );
   }
 
-  // Pitches
   let pitchRows = [];
   try {
     pitchRows = (await pitchesApi.list(team.id)) || [];
@@ -824,16 +1036,17 @@ async function build(root, ctx) {
     section(
       '구장',
       canManage()
-        ? button('4점 등록', { kind: 'ghost', size: 'sm', iconName: 'plus', onClick: () => openPitchForm(ctx) })
+        ? button('4점 등록', { kind: 'soft', size: 'sm', iconName: 'plus', onClick: () => openPitchForm(ctx) })
         : null,
       h(
         'div',
-        { class: 'card-tight' },
+        { class: 'list' },
         ...(pitchRows.length
           ? pitchRows.map((pitch) =>
               h(
                 'div',
                 { class: 'list-row' },
+                h('span', { class: 'list-row-icon' }, icon('ruler', { size: 17 })),
                 h(
                   'div',
                   { class: 'list-row-main' },
@@ -847,7 +1060,23 @@ async function build(root, ctx) {
                 badge('4점 완료', 'ok'),
               ),
             )
-          : [h('p', { class: 'muted small pad' }, canManage() ? '등록된 구장이 없습니다. [4점 등록]으로 추가해 주세요.' : '등록된 구장이 없습니다.')]),
+          : [
+              h(
+                'div',
+                { class: 'list-row' },
+                h('span', { class: 'list-row-icon tone-muted' }, icon('ruler', { size: 17 })),
+                h(
+                  'div',
+                  { class: 'list-row-main' },
+                  h('span', { class: 'list-row-title' }, '등록된 구장이 없습니다'),
+                  h(
+                    'span',
+                    { class: 'list-row-sub' },
+                    canManage() ? '4점 등록으로 구장을 추가하면 히트맵이 정확해집니다.' : '팀장이 구장을 등록하면 여기에 표시됩니다.',
+                  ),
+                ),
+              ),
+            ]),
       ),
     ),
   );
@@ -857,7 +1086,7 @@ async function build(root, ctx) {
       h(
         'p',
         { class: 'foot-note' },
-        '경기 생성·마감·라인업은 팀장·매니저만 할 수 있습니다. 기록은 폰·워치 앱에서 남기면 이 화면에 그대로 나타납니다.',
+        '경기 생성·마감·라인업은 팀장·매니저만 할 수 있습니다. GPS 기록은 폰·워치 앱에서 남기면 이 화면에 그대로 나타납니다.',
       ),
     );
   }

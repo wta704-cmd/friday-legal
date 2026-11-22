@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>PitchOS</title>
-    <meta name="description" content="축구·풋살 퍼포먼스 & 팀 관리 — 일정·투표·라인업·기록" />
-    <meta name="theme-color" content="#2563EB" />
+    <title>PitchOS — 축구·풋살 팀 관리</title>
+    <meta name="description" content="팀 일정·참석 투표·라인업과 경기 기록을 한곳에서. 축구·풋살 퍼포먼스 & 팀 관리." />
+    <meta name="theme-color" content="#F4F6FB" />
     <meta name="color-scheme" content="light" />
 
     <!-- iOS: open from the home screen without Safari chrome -->
@@ -16,16 +16,54 @@
     <meta name="format-detection" content="telephone=no" />
     <meta name="apple-touch-fullscreen" content="yes" />
 
+    <!-- Pretendard (CDN, subset). System Korean fonts stay as the fallback. -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
+
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
     <link rel="stylesheet" href="./app.css" />
+    <style>
+      /* First paint before the module loads. */
+      .boot-static {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        min-height: 100dvh;
+        background: radial-gradient(120% 70% at 50% 0%, #e7eeff 0%, #f4f6fb 55%);
+        font-family: -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo', sans-serif;
+      }
+      .boot-static .mark {
+        display: grid;
+        place-items: center;
+        width: 62px;
+        height: 62px;
+        border-radius: 20px;
+        background: linear-gradient(140deg, #1d4ed8, #3b82f6);
+        color: #fff;
+        font-size: 26px;
+        font-weight: 800;
+      }
+      .boot-static p {
+        margin: 0;
+        color: #64748b;
+        font-size: 12.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+    </style>
   </head>
   <body>
     <div class="app-frame">
       <main id="app" class="app">
-        <div class="boot">
-          <div class="boot-logo">P</div>
+        <div class="boot-static">
+          <div class="mark">P</div>
           <p>PitchOS</p>
         </div>
       </main>
