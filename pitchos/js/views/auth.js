@@ -27,7 +27,7 @@ export function openLegal(name, title) {
     render: async (body) => {
       body.appendChild(h('div', { class: 'legal-loading' }, '문서를 불러오는 중…'));
       try {
-        const url = new URL(`../legal/${name}.html`, import.meta.url);
+        const url = new URL(`../../legal/${name}.html`, import.meta.url);
         const response = await fetch(url, { cache: 'no-cache' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const htmlText = await response.text();
