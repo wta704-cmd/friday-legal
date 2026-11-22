@@ -344,7 +344,8 @@ async function openMatchSheet(match, ctx) {
                           const inserted = await matchesApi.finalize(match.id);
                           toast(`마감했습니다. 미응답 ${inserted}명을 불참으로 기록했습니다.`, { kind: 'ok', ms: 4000 });
                           await draw();
-                          ctx.refreshSilent?.();
+                          // Redraw the list behind the sheet so the card shows the closed vote.
+                          void ctx.render();
                         } catch (error) {
                           toast(error.message, { kind: 'error', ms: 4200 });
                         }
@@ -736,10 +737,11 @@ async function build(root, ctx) {
         h(
           'div',
           { class: 'btn-row' },
-          button('경기 자세히', { kind: 'ghost', block: true, onClick: () => openMatchSheet(next, ctx) }),
-          canManage()
-            ? button('라인업·마감', { block: true, onClick: () => openMatchSheet(next, ctx) })
-            : null,
+          button(canManage() ? '투표 현황·라인업' : '경기 자세히', {
+            kind: canManage() ? 'primary' : 'ghost',
+            block: true,
+            onClick: () => openMatchSheet(next, ctx),
+          }),
         ),
       ),
     );
@@ -865,8 +867,5 @@ async function build(root, ctx) {
 
 export async function renderHome(root, ctx) {
   root.classList.remove('auth-screen');
-  ctx.refreshSilent = () => {
-    rsvpCache.clear();
-  };
   await renderScreen(root, ctx, () => build(root, ctx));
 }
