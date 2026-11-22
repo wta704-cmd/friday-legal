@@ -600,7 +600,20 @@ export const ops = {
 
 export const account = {
   async remove() {
-    const data = await request('/delete-account', { method: 'POST', base: 'functions', body: {} });
+    let data;
+    try {
+      data = await request('/delete-account', { method: 'POST', base: 'functions', body: {} });
+    } catch (error) {
+      // The deployed edge function answers OPTIONS with 405 and sends no CORS
+      // headers, so a browser blocks the call before it leaves the page. The
+      // SECURITY DEFINER RPC removes the same rows (profile → teams → matches →
+      // auth user) through PostgREST, which does allow this origin.
+      if (!(error instanceof ApiError) || (error.code !== 'network' && error.status !== 0)) {
+        throw error;
+      }
+      await request('/rpc/delete_my_account', { method: 'POST', body: {} });
+      data = { deleted: true, via: 'rpc' };
+    }
     clearSession();
     return data;
   },

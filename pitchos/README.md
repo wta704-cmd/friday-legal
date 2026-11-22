@@ -78,3 +78,8 @@ Safari로 주소를 연 뒤 **공유 → 홈 화면에 추가**. 이후에는 �
 - 소셜 로그인 4종(카카오·네이버·구글·Apple)은 콘솔 키가 없어 비활성 안내만 표시합니다.
 - 이메일 가입은 기본 SMTP라 시간당 2통 한도가 있습니다(커스텀 SMTP 연결 전까지).
 - 히트맵·리플레이는 이번 웹 범위에 없습니다(쿼터 지표·공유 설정까지).
+- 계정 탈퇴는 `delete-account` Edge Function을 먼저 부르고, 브라우저 CORS 프리플라이트가
+  막히면(배포된 v3 함수에 CORS 헤더가 없음) `delete_my_account()` RPC로 대체합니다. RPC는
+  프로필·팀·경기·계정까지 지우지만 스토리지 원본 파일은 지우지 않습니다. 함수의 CORS 수정본은
+  `shared-spec/supabase/functions/delete-account/index.ts`에 있고, `supabase functions deploy
+  delete-account`로 배포하면 웹에서도 스토리지까지 정리되는 원래 경로가 쓰입니다.

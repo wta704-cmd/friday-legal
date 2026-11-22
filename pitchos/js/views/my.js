@@ -1,6 +1,6 @@
 // 마이 탭: 프로필, Q&A, 1:1 문의, 계정 관리(로그아웃·탈퇴), 앱 정보.
 
-import { auth, account, support, profiles } from '../api.js';
+import { auth, account, support, profiles, currentUser } from '../api.js';
 import { state, loadProfile, reset } from '../store.js';
 import { APP_VERSION, SUPABASE_URL, SESSION_KEY } from '../config.js';
 import * as fmt from '../lib/format.js';
@@ -404,7 +404,7 @@ async function build(root, ctx) {
           'div',
           { class: 'profile-main' },
           h('h2', { class: 'profile-name' }, profile.display_name || '이름 없음'),
-          h('p', { class: 'profile-mail' }, state.profile?.email || ''),
+          h('p', { class: 'profile-mail' }, currentUser()?.email || ''),
           h(
             'div',
             { class: 'team-tags' },

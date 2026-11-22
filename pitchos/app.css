@@ -602,10 +602,15 @@ button.list-row:active {
   border: 0;
   border-radius: var(--r-sm);
   background: transparent;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--muted);
+  white-space: nowrap;
   transition: background 0.15s ease, color 0.15s ease;
+}
+
+.vote-btn svg {
+  flex: none;
 }
 
 .vote-btn:disabled {
