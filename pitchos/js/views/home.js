@@ -961,7 +961,59 @@ function openEditMatch(ctx, match, { onSaved = null } = {}) {
     }
     opponent.input.addEventListener('input', followAutoTitle);
 
-    const timingText = h('span', { class: 'plan-note-text' });
+    // 시간 계획 — 생성 시트와 같은 계산(총 경기 시간·쿼터 시간·쉬는 시간 → 쿼터 수 자동).
+    // 수정은 저장된 값에서 시작하므로 처음에는 '직접 조정' 상태다. 총 시간을 고르면
+    // 다시 자동 계산으로 돌아가고, '자동으로' 버튼도 같은 일을 한다.
+    const savedTiming = matchTiming({ quarters: match.quarter_count, quarterMinutes: match.quarter_minutes });
+    let plan = planQuarters({
+      totalMinutes: savedTiming.elapsedMinutes,
+      quarterMinutes: match.quarter_minutes,
+      breakMinutes: BREAK_MINUTES.default,
+      quarters: match.quarter_count,
+    });
+    let manualQuarters = match.quarter_count;
+
+    const planNoteText = h('span', { class: 'plan-note-text' });
+    const planState = h('span', { class: 'plan-state' });
+    const planReset = h(
+      'button',
+      {
+        class: 'link-btn',
+        type: 'button',
+        onclick: () => {
+          manualQuarters = null;
+          syncPlan();
+        },
+      },
+      '자동으로',
+    );
+    const planNote = h('div', { class: 'plan-note' }, planNoteText, h('span', { class: 'plan-state-slot' }, planState, planReset));
+
+    const totalField = stepper({
+      label: '총 경기 시간',
+      value: plan.totalMinutes,
+      min: TOTAL_MINUTES.min,
+      max: TOTAL_MINUTES.max,
+      step: 5,
+      chips: [60, 90, 120, 150, 180],
+      hint: '쿼터 수를 계산하는 기준입니다. 경기에 저장되는 값은 쿼터 수·쿼터 시간입니다.',
+      onChange: () => {
+        manualQuarters = null;
+        syncPlan();
+      },
+    });
+    const breakField = stepper({
+      label: '쉬는 시간',
+      value: plan.breakMinutes,
+      min: BREAK_MINUTES.min,
+      max: BREAK_MINUTES.max,
+      step: 1,
+      chips: [0, 1, 2, 3],
+      onChange: () => {
+        manualQuarters = null;
+        syncPlan();
+      },
+    });
     const quarterField = stepper({
       label: '쿼터 시간',
       value: match.quarter_minutes,
@@ -969,7 +1021,10 @@ function openEditMatch(ctx, match, { onSaved = null } = {}) {
       max: QUARTER_MINUTES.max,
       step: 1,
       chips: [10, 11, 12, 13, 14, 15],
-      onChange: () => syncTiming(),
+      onChange: () => {
+        manualQuarters = null;
+        syncPlan();
+      },
     });
     const countField = stepper({
       label: '쿼터 수',
@@ -979,14 +1034,28 @@ function openEditMatch(ctx, match, { onSaved = null } = {}) {
       max: QUARTER_COUNT.max,
       step: 1,
       suffix: '쿼터',
-      hint: '− / + 로 1쿼터씩 조정할 수 있습니다.',
-      onChange: () => syncTiming(),
+      hint: '총 경기 시간에서 자동으로 계산됩니다. − / + 로 직접 조정해도 됩니다.',
+      onChange: (value) => {
+        manualQuarters = value;
+        syncPlan();
+      },
     });
-    function syncTiming() {
-      const timing = matchTiming({ quarters: countField.value, quarterMinutes: quarterField.value });
-      timingText.textContent = `총 ${timing.elapsedMinutes}분 진행 · 휴식 ${timing.breakMinutes}분×${timing.breakCount}회`;
+
+    function syncPlan() {
+      plan = planQuarters({
+        totalMinutes: totalField.value,
+        quarterMinutes: quarterField.value,
+        breakMinutes: breakField.value,
+        quarters: manualQuarters,
+      });
+      countField.set(plan.quarters, { silent: true });
+      planNoteText.textContent = describePlan(plan);
+      planState.textContent = plan.manual ? '직접 조정' : '자동 계산';
+      planState.classList.toggle('is-manual', plan.manual);
+      planReset.hidden = !plan.manual;
+      planNote.classList.toggle('is-warn', plan.spareMinutes < 0);
     }
-    syncTiming();
+    syncPlan();
 
     function syncDeadlineFromKickoff() {
       if (deadlineTouched) return;
@@ -1028,9 +1097,10 @@ function openEditMatch(ctx, match, { onSaved = null } = {}) {
             h(
               'div',
               { class: 'plan-block' },
+              totalField.el,
               quarterField.el,
-              countField.el,
-              h('div', { class: 'plan-note' }, timingText),
+              h('div', { class: 'field-row' }, breakField.el, countField.el),
+              planNote,
             ),
             h(
               'div',
