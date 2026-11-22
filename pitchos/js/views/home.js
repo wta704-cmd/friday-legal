@@ -294,7 +294,7 @@ function heroCard(match, team) {
 // Lineup board
 // ---------------------------------------------------------------------------
 
-function lineupCard({ match, rows, saved, onSaved }) {
+function lineupCard({ match, rows, saved, onSaved, showTitle = true }) {
   const names = memberMap();
   const nameOf = (userId) => names.get(userId)?.display_name || '팀원';
   let draft = null;
@@ -336,7 +336,7 @@ function lineupCard({ match, rows, saved, onSaved }) {
       h(
         'div',
         { class: 'lineup-top' },
-        h('h3', { class: 'card-title' }, '라인업'),
+        showTitle ? h('h3', { class: 'card-title' }, '라인업') : h('span', { class: 'card-sub' }, '라인업'),
         h('span', { class: 'card-sub' }, `${match.quarter_count}쿼터 · ${PER_SIDE[match.mode] || 5}:${PER_SIDE[match.mode] || 5}`),
       ),
       tabs,
@@ -478,7 +478,7 @@ async function openMatchSheet(match, ctx) {
                     h('h3', { class: 'card-title' }, '투표 마감'),
                     badge(fmt.MATCH_STATUS_LABEL[match.status] || match.status, 'muted'),
                   ),
-                  button(closed ? '마감하고 미응답자 불참 처리' : '마감 준비 중', {
+                  button(closed ? '마감하고 미응답자 불참 처리' : '투표 마감', {
                     kind: closed ? 'primary' : 'ghost',
                     block: true,
                     disabled: !closed,
@@ -968,7 +968,6 @@ async function build(root, ctx) {
         button(canManage() ? '투표 현황 · 라인업' : '경기 자세히', {
           block: true,
           kind: canManage() ? 'primary' : 'ghost',
-          iconName: 'chevron',
           onClick: () => openMatchSheet(next, ctx),
         }),
       ),
@@ -977,7 +976,7 @@ async function build(root, ctx) {
       section(
         '라인업',
         h('span', { class: 'section-note' }, `${next.quarter_count}쿼터`),
-        lineupCard({ match: next, rows, saved, onSaved: () => ctx.render() }),
+        lineupCard({ match: next, rows, saved, onSaved: () => ctx.render(), showTitle: false }),
       ),
     );
   } else {

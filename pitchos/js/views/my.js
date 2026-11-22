@@ -555,7 +555,7 @@ async function build(root, ctx) {
       list([
         { iconName: 'ball', title: '버전', value: APP_VERSION },
         { iconName: 'share', title: '홈 화면에 추가', sub: 'Safari 공유 → 홈 화면에 추가', onClick: openInstallGuide },
-        { iconName: 'shield', title: '서버', value: SUPABASE_URL.replace('https://', '').split('.')[0], sub: localStorage.getItem(SESSION_KEY) ? '로그인됨' : '세션 없음' },
+        { iconName: 'shield', title: '서버', sub: 'Supabase', value: SUPABASE_URL.replace('https://', '').split('.')[0] },
       ]),
     ),
   );

@@ -192,11 +192,15 @@ export function renderAuth(root, { onSignedIn }) {
       h(
         'div',
         { class: 'social-block' },
-        h('div', { class: 'divider' }, h('span', null, '또는 소셜 계정으로 계속')),
+        h(
+          'div',
+          { class: 'social-head' },
+          h('div', { class: 'divider' }, h('span', null, '또는 소셜 계정으로 계속')),
+          h('span', { class: 'soon-pill' }, '준비 중'),
+        ),
         h(
           'div',
           { class: 'social-row' },
-          h('span', { class: 'soon', style: { top: '-9px', right: '2px' } }, '준비 중'),
           ...PROVIDERS.map((provider) =>
             h(
               'button',

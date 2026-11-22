@@ -186,7 +186,6 @@ async function teamSharedSection(ctx) {
             },
           },
           fmt.formatMonthDay(match.kickoff_at),
-          h('span', { class: 'chip-count' }, match.title),
         ),
       ),
     );

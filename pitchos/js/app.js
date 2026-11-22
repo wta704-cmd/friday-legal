@@ -11,7 +11,7 @@ import { renderMy } from './views/my.js';
 import { h, mount, icon, toast, readPrefs, writePrefs, errorState } from './ui.js';
 
 const TABS = [
-  { id: 'home', label: '경기', icon: 'whistle', render: renderHome },
+  { id: 'home', label: '경기', icon: 'ball', render: renderHome },
   { id: 'team', label: '팀', icon: 'team', render: renderTeam },
   { id: 'records', label: '기록', icon: 'chart', render: renderRecords },
   { id: 'my', label: '마이', icon: 'user', render: renderMy },

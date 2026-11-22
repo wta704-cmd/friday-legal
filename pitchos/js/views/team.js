@@ -142,7 +142,7 @@ function positionSheet(member, { onChanged }) {
 function memberRow(member, { manager, onChanged }) {
   const isMe = member.user_id === state.profile?.id;
   const role = ROLE_LABEL[member.role] || member.role;
-  const meta = [role, member.jersey_number != null ? `#${member.jersey_number}` : null].filter(Boolean).join(' · ');
+  const meta = member.jersey_number != null ? `#${member.jersey_number}` : '';
   const clickable = manager && member.status === 'active';
   const tag = clickable ? 'button' : 'div';
   return h(
@@ -161,9 +161,13 @@ function memberRow(member, { manager, onChanged }) {
         { class: 'member-name' },
         member.display_name,
         isMe ? h('span', { class: 'me-tag' }, '나') : null,
-        member.role === 'owner' ? badge('팀장', 'primary') : member.role === 'manager' ? badge('매니저', 'muted') : null,
+        member.role === 'owner'
+          ? badge('팀장', 'primary')
+          : member.role === 'manager'
+            ? badge('매니저', 'ok')
+            : badge('멤버', 'muted'),
       ),
-      h('span', { class: 'member-meta' }, meta || '멤버'),
+      h('span', { class: 'member-meta' }, meta || '등번호 없음'),
     ),
     h(
       'div',
@@ -223,7 +227,7 @@ async function build(root, ctx) {
           role ? badge(ROLE_LABEL[role]) : null,
         ),
       ),
-      h('div', { class: 'team-banner-count' }, h('b', null, String(active.length)), h('span', null, '명')),
+      h('div', { class: 'team-banner-count' }, h('span', null, '팀원'), h('b', null, `${active.length}명`)),
     ),
   );
 
