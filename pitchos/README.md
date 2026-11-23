@@ -28,7 +28,7 @@ web/
     lib/pitch.js             전술판(피치 보드) 선수 배치 계산 (단위 테스트)
     views/                   auth · home(경기·투표) · team · records · my
   samples/                   테스트용 풋살 GPX 샘플(4쿼터)
-  tests/                     node --test 단위 테스트 (CI)
+  tests/                     node --test 단위 테스트 (CI) — 원본 pitch-os 저장소에만, 이 배포 사본에는 없음
 ```
 
 ## 디자인 (2026-11 브랜드 v3 — JOKBAL.L)
