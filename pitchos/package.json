@@ -2,8 +2,5 @@
   "name": "pitchos-web",
   "private": true,
   "type": "module",
-  "description": "JOKBAL.L mobile web (PWA) client — static files, no build step",
-  "scripts": {
-    "test": "node --test \"tests/*.test.js\""
-  }
+  "description": "JOKBAL.L mobile web (PWA) client — static files, no build step"
 }
